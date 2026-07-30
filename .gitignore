@@ -1,0 +1,8 @@
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
+.env
+.env.*
+/scripts/sync-check.sh

@@ -1,0 +1,96 @@
+{
+  "dualStack": false,
+  "ipv4": {
+    "ip": "114.114.114.114",
+    "countryCode": "CN",
+    "countryName": "China",
+    "region": "Jiangsu",
+    "city": "Nanjing",
+    "timezone": "Asia/Shanghai",
+    "asn": 21859,
+    "asName": "Zenlayer Inc",
+    "networkType": "datacenter_likely",
+    "networkLabel": "数据中心 / 云服务商",
+    "accessType": "datacenter",
+    "accessLabel": "机房接入",
+    "routeType": "anycast_likely",
+    "routeLabel": "广播 IP",
+    "riskLevel": "clean",
+    "riskLabel": "纯净",
+    "isProxy": 0,
+    "torExit": false,
+    "score": 50,
+    "scoreLabel": "待检查",
+    "ai": [
+      {
+        "id": "chatgpt",
+        "name": "ChatGPT",
+        "status": "not_supported",
+        "label": "不可用"
+      },
+      {
+        "id": "claude",
+        "name": "Claude",
+        "status": "not_supported",
+        "label": "不可用"
+      },
+      {
+        "id": "gemini",
+        "name": "Gemini",
+        "status": "partial",
+        "label": "受限"
+      },
+      {
+        "id": "grok",
+        "name": "Grok",
+        "status": "not_supported",
+        "label": "不可用"
+      },
+      {
+        "id": "deepseek",
+        "name": "DeepSeek",
+        "status": "supported",
+        "label": "可用"
+      },
+      {
+        "id": "kimi",
+        "name": "Kimi",
+        "status": "supported",
+        "label": "可用"
+      },
+      {
+        "id": "doubao",
+        "name": "豆包",
+        "status": "supported",
+        "label": "可用"
+      },
+      {
+        "id": "qwen",
+        "name": "通义千问",
+        "status": "supported",
+        "label": "可用"
+      },
+      {
+        "id": "zhipu",
+        "name": "智谱清言",
+        "status": "supported",
+        "label": "可用"
+      },
+      {
+        "id": "minimax",
+        "name": "MiniMax",
+        "status": "supported",
+        "label": "可用"
+      },
+      {
+        "id": "mimo",
+        "name": "MiMo",
+        "status": "supported",
+        "label": "可用"
+      }
+    ],
+    "url": "https://ipforai.cc/?ip=114.114.114.114"
+  },
+  "ipv6": null,
+  "disclaimer": "结果仅供参考，不代表账号或平台最终判断。"
+}
