@@ -6,7 +6,7 @@ Base URL: `https://ipforai.cc`
 
 ### `GET /json`
 
-Current request source IP.
+Current request source IP as observed by the server. The endpoint does not inspect the caller's local system, proxy configuration, or browser state.
 
 ```bash
 curl -fsSL https://ipforai.cc/json
@@ -21,7 +21,10 @@ Look up a specific IPv4 or IPv6 address.
 ```bash
 curl -fsSL "https://ipforai.cc/json?ip=8.8.8.8"
 curl -fsSL "https://ipforai.cc/json?ip=2001:4860:4860::8888"
+curl --get -fsSL --data-urlencode 'ip=8.8.8.8' "https://ipforai.cc/json"
 ```
+
+`ip` is the only optional query parameter. Omit it or leave it empty to use the request source IP; provide an IPv4 or IPv6 address for a server-side profile lookup. The service does not initiate a live connection from that address. An invalid address returns HTTP 400 with `invalid_ip`.
 
 ## Response shape
 

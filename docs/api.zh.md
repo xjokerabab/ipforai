@@ -8,7 +8,7 @@ Base URL：`https://ipforai.cc`
 
 ### `GET /json`
 
-当前请求的源 IP。
+服务端看到的当前请求源 IP。这个接口不会读取调用方本机系统、代理配置或浏览器状态。
 
 ```bash
 curl -fsSL https://ipforai.cc/json
@@ -22,7 +22,11 @@ curl -6 -fsSL https://ipforai.cc/json
 
 ```bash
 curl -fsSL "https://ipforai.cc/json?ip=8.8.8.8"
+curl -fsSL "https://ipforai.cc/json?ip=2001:4860:4860::8888"
+curl --get -fsSL --data-urlencode 'ip=8.8.8.8' "https://ipforai.cc/json"
 ```
+
+`ip` 是唯一可选查询参数。省略或留空时使用本次请求源 IP；填入 IPv4/IPv6 时只做服务端画像查询，不会从该地址发起实时连接。非法地址返回 HTTP 400 `invalid_ip`。
 
 ## 响应形状
 

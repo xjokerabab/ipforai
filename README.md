@@ -10,18 +10,21 @@
 
 ## 一行命令
 
-### 终端检测（推荐入口）
+### 终端检测
 
+快捷执行（`sh` 和 `bash` 均可）：
 ```bash
 curl -fsSL https://ipforai.cc/sh | sh
+curl -fsSL https://ipforai.cc/sh | bash
 ```
 
-先审阅再执行（更安全）：
+先审阅再执行（推荐）：
 
 ```bash
 curl -fsSL https://ipforai.cc/sh -o /tmp/ipforai-check.sh
 less /tmp/ipforai-check.sh
 sh /tmp/ipforai-check.sh -y
+# 也可以用 bash 执行：bash /tmp/ipforai-check.sh -y
 ```
 
 常用参数：
@@ -37,27 +40,31 @@ curl -fsSL https://ipforai.cc/sh | sh -s -- -y 8.8.8.8
 curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
 ```
 
-> **权威脚本地址始终是官网** `https://ipforai.cc/sh`。本仓库中的 `check.sh` 为镜像副本，便于审阅与 star；请以官网版本为准。
+以上命令中的 `sh` 均可替换为 `bash`；两者执行同一份 POSIX 兼容脚本。
 
-### 开发者 JSON
+> **权威脚本地址始终是官网** `https://ipforai.cc/sh`。本仓库中的 `check.sh` 为审阅镜像；请以官网版本为准。
+
+### 开发者 JSON（GET）
 
 ```bash
-# 当前出口（一次连接只填一个地址族）
-curl -fsSL https://ipforai.cc/json
+# GET /json：查看服务端看到的本次请求源 IP
+curl -fsSL 'https://ipforai.cc/json'
 
-# 指定 IP
-curl -fsSL "https://ipforai.cc/json?ip=8.8.8.8"
+# GET /json?ip=：服务端查询指定 IPv4 或 IPv6
+curl -fsSL 'https://ipforai.cc/json?ip=8.8.8.8'
+curl -fsSL 'https://ipforai.cc/json?ip=2001:4860:4860::8888'
 
-# 分别看 IPv4 / IPv6 出口
-curl -4 -fsSL https://ipforai.cc/json
-curl -6 -fsSL https://ipforai.cc/json
+# 强制分别查看请求的 IPv4 / IPv6 出口
+curl -4 -fsSL 'https://ipforai.cc/json'
+curl -6 -fsSL 'https://ipforai.cc/json'
+
+# 使用 GET 参数编码传入 ip
+curl --get -fsSL --data-urlencode 'ip=8.8.8.8' 'https://ipforai.cc/json'
 ```
 
+`ip` 是唯一可选查询参数：省略或留空时查询本次请求源 IP；填入地址时只做服务端画像查询，不会从该 IP 发起实时连接，也不会读取调用方本机系统或浏览器数据。非法 IP 返回 HTTP 400。
+
 字段说明见 [docs/api.zh.md](./docs/api.zh.md)（[English](./docs/api.md)），示例响应见 [examples/sample.json](./examples/sample.json)。
-
-### 网页
-
-打开 [https://ipforai.cc](https://ipforai.cc) 使用完整面板与排查指南。
 
 ---
 
@@ -81,8 +88,9 @@ curl -6 -fsSL https://ipforai.cc/json
 
 ## 依赖与边界
 
-- **CLI**：POSIX `sh` + `curl`；只读检测，不写系统配置、不安装软件、不需要 API Key
-- **JSON / CLI 画像**：请求 [ipforai.cc](https://ipforai.cc) 后端；离线库与规则由官网维护
+- **CLI**：POSIX `sh`、`curl` 和系统常用命令；只读检测，不写系统配置、不安装软件、不需要 API Key
+- **网络请求**：CLI 会向 [ipforai.cc](https://ipforai.cc)、IPv4 探测域名及脚本列出的 AI/厂商公开域名发起探测；JSON 只请求官网后端画像接口
+- **数据来源**：离线库与规则由官网维护，仓库中的 `check.sh` 只是审阅镜像
 - 会创建临时目录并在退出时删除
 - 一次 TCP 请求只能看到一个源地址族；双栈请 `-4` / `-6` 各查一次
 
@@ -94,32 +102,10 @@ curl -6 -fsSL https://ipforai.cc/json
 .
 ├── README.md / README_EN.md
 ├── LICENSE
-├── check.sh                 # 与官网 /sh 同步的镜像
+├── check.sh                 # /sh 的审阅镜像，以官网为准
 ├── docs/api.zh.md / api.md  # /json 说明
 └── examples/sample.json     # 示例响应（单次请求仅一侧有值）
 ```
-
-### 发布到 GitHub 时建议
-
-- **Description：** AI 网络环境检测：终端一行命令 + JSON API（ipforai.cc）
-- **Topics：** `ip` `ai` `chatgpt` `claude` `shell` `network` `json-api` `ipv4` `ipv6`
-- **Website：** `https://ipforai.cc`
-
----
-
-## 与官网的关系
-
-| 入口 | 地址 |
-|------|------|
-| 网站 | https://ipforai.cc |
-| 终端脚本 | https://ipforai.cc/sh |
-| JSON API | https://ipforai.cc/json |
-| 方法说明 | https://ipforai.cc/about |
-| 本仓库 | 文档、示例与脚本镜像，用于发现与传播 |
-
-本仓库 **不包含** 离线 IP 数据库与后端服务源码；检测能力以官网在线服务为准。
-
----
 
 ## 更新
 
