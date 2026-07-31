@@ -37,6 +37,14 @@ The `sh` in these examples can be replaced with `bash`; both run the same POSIX-
 
 > **Canonical script URL is always** `https://ipforai.cc/sh`. `check.sh` in this repo is a review mirror; use the website version as the source of truth.
 
+### Example output
+
+These are redacted dual-stack terminal examples. IPs, time zones, latencies, and service results vary with the actual network environment.
+
+![Terminal example: exit overview and AI service connectivity](./docs/images/terminal-report-overview.png)
+
+![Terminal example: AI routing exits and environment score](./docs/images/terminal-report-routing.png)
+
 ### Developer JSON (GET)
 
 ```bash

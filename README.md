@@ -44,6 +44,14 @@ curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
 
 > **权威脚本地址始终是官网** `https://ipforai.cc/sh`。本仓库中的 `check.sh` 为审阅镜像；请以官网版本为准。
 
+### 检测效果
+
+以下为脱敏的双栈终端检测示例。IP、时区、耗时和服务结果会随实际网络环境变化。
+
+![终端检测示例：出口总览与 AI 服务链路](./docs/images/terminal-report-overview.png)
+
+![终端检测示例：AI 分流出口与环境质量分](./docs/images/terminal-report-routing.png)
+
 ### 开发者 JSON（GET）
 
 ```bash
