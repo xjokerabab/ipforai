@@ -1,6 +1,6 @@
 # ipforai Network Check
 
-[中文](./README.md) · [Website](https://ipforai.cc) · [Method](https://ipforai.cc/about)
+[中文](./README.md) · [Website](https://ipforai.cc) · [CLI guide](https://ipforai.cc/en/cli) · [Method](https://ipforai.cc/about)
 
 Network environment checks for **AI access**: public exit profile, network / access / routing attributes, risk signals, environment score, and availability references for ChatGPT, Claude, Gemini, and more (**Available / Limited / Unavailable / Pending**).
 
@@ -36,6 +36,8 @@ curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
 The `sh` in these examples can be replaced with `bash`; both run the same POSIX-compatible script.
 
 > **Canonical script URL is always** `https://ipforai.cc/sh`. `check.sh` in this repo is a review mirror; use the website version as the source of truth.
+
+For all arguments, probe coverage, and result interpretation, see the [CLI guide](https://ipforai.cc/en/cli).
 
 ### Example output
 

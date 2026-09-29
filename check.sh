@@ -81,10 +81,11 @@ done
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   R=$(printf '\033[0m');   B=$(printf '\033[1m')
-  DIM=$(printf '\033[2m'); GRN=$(printf '\033[32m')
-  YEL=$(printf '\033[33m'); RED=$(printf '\033[31m')
+  TITLE=$(printf '\033[1;96m'); DIM=$(printf '\033[2m')
+  GRN=$(printf '\033[92m'); YEL=$(printf '\033[93m')
+  RED=$(printf '\033[91m')
 else
-  R=''; B=''; DIM=''; GRN=''; YEL=''; RED=''
+  R=''; B=''; TITLE=''; DIM=''; GRN=''; YEL=''; RED=''
 fi
 
 # ---------- JSON 取值 ----------
@@ -180,7 +181,7 @@ is_ipv6_addr() {
 # curl | sh 时 stdin 被管道占着，交互必须走 /dev/tty。
 
 if [ "$ASSUME_YES" -eq 0 ] && [ -e /dev/tty ] && [ -t 2 ]; then
-  printf '%sipforai 网络检测（只读）%s\n' "$B" "$R"
+  printf '%sipforai 网络检测（只读）%s\n' "$TITLE" "$R"
   if [ -n "$TARGET_IP" ]; then
     printf '%s将查询指定 IP 的公开画像与环境质量分；不修改本机配置，不需要 API key。%s\n' "$DIM" "$R"
   else
@@ -195,7 +196,7 @@ fi
 TMP=$(mktemp -d 2>/dev/null) || { printf '无法创建临时目录\n' >&2; exit 1; }
 trap 'rm -rf "$TMP"' EXIT INT TERM
 
-printf '\n  %sipforai 网络检测%s\n' "$B" "$R"
+printf '\n  %sipforai 网络检测%s\n' "$TITLE" "$R"
 printf '  %s%s%s\n' "$DIM" '─────────────────────────────────────────────' "$R"
 printf '  %s报告时间%s  %s · %s%s  %s%s%s\n' "$DIM" "$R" "$CHECK_STARTED_AT" "$LOCAL_ZONE" "${LOCAL_UTC_OFFSET:+ (UTC$LOCAL_UTC_OFFSET)}" "$DIM" "$SCRIPT_VERSION" "$R"
 if [ -n "$TARGET_IP" ]; then
@@ -449,7 +450,7 @@ print_card() {
   fi
 }
 
-printf '\n  %s[01] 出口总览%s\n' "$B" "$R"
+printf '\n  %s[01] 出口总览%s\n' "$TITLE" "$R"
 if [ -n "$TARGET_IP" ]; then
   printf '  %s指定 IP 画像%s\n' "$DIM" "$R"
 elif [ -n "$IP4" ] && [ -n "$IP6" ]; then
@@ -741,14 +742,14 @@ else
   SERVICE_FAIL=$(service_status_count fail)
   SERVICE_REVIEW=$(service_status_count review)
 
-  printf '\n  %s[02] AI 服务链路%s\n' "$B" "$R"
+  printf '\n  %s[02] AI 服务链路%s\n' "$TITLE" "$R"
   printf '  %s检测结果%s  %s%s 可连接%s · %s%s 失败%s' "$DIM" "$R" "$GRN" "$SERVICE_OK" "$R" "$RED" "$SERVICE_FAIL" "$R"
   [ "$SERVICE_REVIEW" -gt 0 ] && printf ' · %s%s 需复核%s' "$YEL" "$SERVICE_REVIEW" "$R"
   printf '\n'
   printf '  %s说明%s      基于本机当前出口的公开资源探测，不代表账号或完整功能可用\n\n' "$DIM" "$R"
   print_service_results
 
-  printf '\n  %s[03] AI 分流出口%s\n' "$B" "$R"
+  printf '\n  %s[03] AI 分流出口%s\n' "$TITLE" "$R"
   printf '  %s说明%s      与本机同地址族出口对照；无对照出口时不判「不一致」\n' "$DIM" "$R"
   if [ -s "$TMP/exits" ]; then
     printf '  %s%s 项中识别到 %s 项 · %s 条出口路径%s\n\n' "$DIM" "$ROUTING_TOTAL" "$ROUTING_IDENTIFIED" "$EXIT_KINDS" "$R"
@@ -792,7 +793,7 @@ SCORE_O=$(json_scope "$SCORE_JSON" score)
 SCORE=$(json_num "$SCORE_O" environmentScore)
 SCORE_LABEL=$(json_str "$SCORE_O" levelLabel)
 
-printf '\n  %s%s 环境质量分%s\n\n' "$B" "$SCORE_SECTION" "$R"
+printf '\n  %s%s 环境质量分%s\n\n' "$TITLE" "$SCORE_SECTION" "$R"
 
 if [ -n "$SCORE" ]; then
   if [ "$SCORE" -ge 85 ]; then SC="$GRN"
@@ -815,7 +816,7 @@ else
 fi
 
 if [ "$DETAIL" -eq 1 ]; then
-  printf '\n  %s详细诊断%s\n' "$B" "$R"
+  printf '\n  %s详细诊断%s\n' "$TITLE" "$R"
   printf '  %s本机时区%s  %s (UTC%s)\n' "$DIM" "$R" "${SYS_TZ:-$LOCAL_ZONE}" "${UTC_OFF:-?}"
   if [ -z "$TARGET_IP" ]; then
     printf '  %s服务响应%s  HTTP 状态已显示在每项服务耗时后（需 -d）\n' "$DIM" "$R"

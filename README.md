@@ -1,6 +1,6 @@
 # ipforai 网络检测
 
-[English](./README_EN.md) · [官网](https://ipforai.cc) · [检测方法](https://ipforai.cc/about)
+[English](./README_EN.md) · [官网](https://ipforai.cc) · [命令行用法](https://ipforai.cc/cli) · [检测方法](https://ipforai.cc/about)
 
 面向 **AI 访问场景** 的网络环境检测：当前出口画像、网络/接入/路由属性、风险信号、环境质量分，以及对 ChatGPT / Claude / Gemini 等服务的可用性参考（可用 / 受限 / 不可用 / 待确认）。
 
@@ -43,6 +43,8 @@ curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
 以上命令中的 `sh` 均可替换为 `bash`；两者执行同一份 POSIX 兼容脚本。
 
 > **权威脚本地址始终是官网** `https://ipforai.cc/sh`。本仓库中的 `check.sh` 为审阅镜像；请以官网版本为准。
+
+完整参数、探测范围和结果解读见[命令行检测指南](https://ipforai.cc/cli)。
 
 ### 检测效果
 
