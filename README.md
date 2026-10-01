@@ -72,9 +72,29 @@ curl -6 -fsSL 'https://ipforai.cc/json'
 curl --get -fsSL --data-urlencode 'ip=8.8.8.8' 'https://ipforai.cc/json'
 ```
 
-`ip` 是唯一可选查询参数：省略或留空时查询本次请求源 IP；填入地址时只做服务端画像查询，不会从该 IP 发起实时连接，也不会读取调用方本机系统或浏览器数据。非法 IP 返回 HTTP 400。
+`ip` 是唯一可选查询参数：省略或留空时查询本次请求源 IP；填入地址时只做服务端画像查询，不会从该 IP 发起实时连接，也不会读取调用方本机系统或浏览器数据。非法 IP 返回 HTTP 400。合法 `?ip=` 响应带 `Cache-Control: public, max-age=600`，允许 CDN 缓存；无参响应始终 `private, no-store`。
 
 字段说明见 [docs/api.zh.md](./docs/api.zh.md)（[English](./docs/api.md)），示例响应见 [examples/sample.json](./examples/sample.json)。
+
+### README 徽章（GET）
+
+给任意项目 README 挂一张「AI 网络评分」徽章，点击回到官网结果页：
+
+```markdown
+[![AI 网络评分](https://img.shields.io/endpoint?url=https%3A%2F%2Fipforai.cc%2Fbadge.json%3Fip%3D8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
+```
+
+自托管 SVG（不依赖 Shields.io，任意网页 `<img>` 可直接嵌入）：
+
+```markdown
+[![AI 网络评分](https://ipforai.cc/badge.svg?ip=8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
+```
+
+实际效果（8.8.8.8 查询时的快照）：
+
+[![AI 网络评分](https://img.shields.io/endpoint?url=https%3A%2F%2Fipforai.cc%2Fbadge.json%3Fip%3D8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
+
+README 徽章必须带 `?ip=`：GitHub 的 README 图片由 camo 代理抓取并缓存，不带参数显示的是抓图方的分数，不是读者的。接口细节与颜色档位见 [docs/badge.zh.md](./docs/badge.zh.md)（[English](./docs/badge.md)）。
 
 ---
 
@@ -114,6 +134,7 @@ curl --get -fsSL --data-urlencode 'ip=8.8.8.8' 'https://ipforai.cc/json'
 ├── LICENSE
 ├── check.sh                 # /sh 的审阅镜像，以官网为准
 ├── docs/api.zh.md / api.md  # /json 说明
+├── docs/badge.zh.md / badge.md  # /badge.json、/badge.svg 说明
 └── examples/sample.json     # 示例响应（单次请求仅一侧有值）
 ```
 

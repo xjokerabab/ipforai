@@ -90,10 +90,13 @@ curl --get -fsSL --data-urlencode 'ip=8.8.8.8' "https://ipforai.cc/json"
 
 ## 响应头
 
-| Header | 值 |
-|--------|-----|
-| `Cache-Control` | `private, no-store` |
-| `X-IP-for-AI-Schema` | `json-v1` |
+| 请求 | Header | 值 |
+|------|--------|-----|
+| `?ip=` 已填且合法 | `Cache-Control` | `public, max-age=600`（允许 CDN 缓存） |
+| 其他（无参 / 空 `?ip=` / 错误） | `Cache-Control` | `private, no-store` |
+| 全部 | `X-IP-for-AI-Schema` | `json-v1` |
+
+`?ip=` 查询的是固定地址的公开画像，结果允许被 CDN 缓存；无参形式描述的是本次请求源 IP，任何中间层都不应缓存。
 
 ## 示例
 

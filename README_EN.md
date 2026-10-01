@@ -65,11 +65,31 @@ curl -6 -fsSL 'https://ipforai.cc/json'
 curl --get -fsSL --data-urlencode 'ip=8.8.8.8' 'https://ipforai.cc/json'
 ```
 
-`ip` is the only optional query parameter. Omit it or leave it empty to profile the request source IP; provide an address for a server-side profile lookup. It does not initiate a live connection from that address or inspect the caller's local system or browser. An invalid address returns HTTP 400.
+`ip` is the only optional query parameter. Omit it or leave it empty to profile the request source IP; provide an address for a server-side profile lookup. It does not initiate a live connection from that address or inspect the caller's local system or browser. An invalid address returns HTTP 400. A valid `?ip=` response carries `Cache-Control: public, max-age=600` (CDN cacheable); the parameterless form is always `private, no-store`.
 
 See [docs/api.md](./docs/api.md) ([中文](./docs/api.zh.md)) and [examples/sample.json](./examples/sample.json).
 
 One HTTP request fills only one of `ipv4` / `ipv6` (`dualStack` is usually `false`).
+
+### README badge (GET)
+
+Add an "AI network score" badge to any project README; clicking it opens the result page on the site:
+
+```markdown
+[![AI network score](https://img.shields.io/endpoint?url=https%3A%2F%2Fipforai.cc%2Fbadge.json%3Fip%3D8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
+```
+
+Self-hosted SVG (no Shields.io dependency, works in any `<img>`):
+
+```markdown
+[![AI network score](https://ipforai.cc/badge.svg?ip=8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
+```
+
+Live result (snapshot while querying 8.8.8.8):
+
+[![AI network score](https://img.shields.io/endpoint?url=https%3A%2F%2Fipforai.cc%2Fbadge.json%3Fip%3D8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
+
+README badges must pass `?ip=`: GitHub fetches README images through its camo proxy and caches them, so a parameterless badge shows the fetcher's score, not the reader's. Endpoint details and color levels: [docs/badge.md](./docs/badge.md) ([中文](./docs/badge.zh.md)).
 
 ---
 

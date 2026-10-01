@@ -97,10 +97,13 @@ Labels match the website footer. They are **not** live connectivity tests for `?
 
 ## Headers
 
-| Header | Value |
-|--------|--------|
-| `Cache-Control` | `private, no-store` |
-| `X-IP-for-AI-Schema` | `json-v1` |
+| Request | Header | Value |
+|---------|--------|-------|
+| `?ip=` given and valid | `Cache-Control` | `public, max-age=600` (CDN cacheable) |
+| everything else (no param / empty `?ip=` / errors) | `Cache-Control` | `private, no-store` |
+| all responses | `X-IP-for-AI-Schema` | `json-v1` |
+
+A `?ip=` query describes a fixed address's public profile and may be cached by CDNs; the parameterless form describes this request's source IP and must not be cached by any intermediary.
 
 ## Example
 
