@@ -105,6 +105,20 @@ Labels match the website footer. They are **not** live connectivity tests for `?
 
 A `?ip=` query describes a fixed address's public profile and may be cached by CDNs; the parameterless form describes this request's source IP and must not be cached by any intermediary.
 
+## CORS
+
+- `?ip=` lookups are public data about a fixed address, so responses carry `Access-Control-Allow-Origin: *`: any web frontend may call them directly, and OPTIONS preflight is supported on `/json`, `/badge.json`, and `/badge.svg`.
+- The parameterless form describes this request's source IP and is **not open to third-party origins**: other sites' pages cannot read it from their visitors' browsers, which keeps the service from being used to profile visitors silently. Third-party sites should use `?ip=` or proxy the call through their own backend.
+- The website's own frontend reaches `/json` through a same-origin proxy and does not rely on browser CORS.
+
+## Stability promise
+
+Integrations should be able to depend on this API:
+
+- The `X-IP-for-AI-Schema: json-v1` response header identifies the current schema. **Within v1 only backward-compatible changes happen**: fields may be added; existing fields are never removed or renamed; documented value sets only grow.
+- Breaking changes ship as a new schema value (e.g. `json-v2`) under the same header; `/json` keeps serving `json-v1` through a deprecation window announced in this file and the repository history.
+- The badge endpoints (`/badge.json`, `/badge.svg`) follow the same policy, currently `badge-v1`; `/badge.json` stays compatible with the Shields.io endpoint format.
+
 ## Example
 
 See [examples/sample.json](../examples/sample.json) (`114.114.114.114`).

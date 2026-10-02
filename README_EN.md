@@ -117,6 +117,16 @@ README badges must pass `?ip=`: GitHub fetches README images through its camo pr
 
 One TCP connection exposes one source family. Use `curl -4` / `curl -6`, or `?ip=` for a specific address. The JSON shape always has `ipv4` / `ipv6` slots; the unused side is `null`.
 
+## Used by
+
+Does your project integrate ipforai — a README badge, the `/json?ip=` API, or the CLI check? [Open an issue](https://github.com/xjokerabab/ipforai/issues/new?title=Used+by) and we will list you here:
+
+<!-- Sorted by integration type; add one line: [Project](link) — one-line usage note -->
+
+_Nothing yet. Be the first._
+
+Before integrating, read "Stability promise" and "CORS" in the [JSON API docs](./docs/api.md): `?ip=` is open to any origin; the parameterless form is not open to third-party sites.
+
 ## License
 
 [MIT](./LICENSE)

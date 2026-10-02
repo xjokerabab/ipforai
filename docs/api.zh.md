@@ -98,6 +98,20 @@ curl --get -fsSL --data-urlencode 'ip=8.8.8.8' "https://ipforai.cc/json"
 
 `?ip=` 查询的是固定地址的公开画像，结果允许被 CDN 缓存；无参形式描述的是本次请求源 IP，任何中间层都不应缓存。
 
+## 跨域（CORS）
+
+- `?ip=` 查询是固定地址的公开数据，响应带 `Access-Control-Allow-Origin: *`：任何网页前端都可以直接调用，`/json`、`/badge.json`、`/badge.svg` 均支持 OPTIONS 预检。
+- 无参形式返回本次请求源 IP 的画像，**不对第三方站点开放跨域**：第三方网页无法在访客浏览器里读取该接口，避免本服务被用来静默采集访客的网络画像。第三方站点请改用 `?ip=`，或由自己的服务端代理调用。
+- 官网前端通过同源代理访问 `/json`，不依赖浏览器跨域。
+
+## 稳定性承诺
+
+集成方可以放心依赖这套接口：
+
+- 响应头 `X-IP-for-AI-Schema: json-v1` 标识当前 schema。**v1 之内只做向后兼容的变更**：可以新增字段；不删除、不改名既有字段；文档中的取值集合只增不减。
+- 破坏性变更换用新的 schema 值（如 `json-v2`），仍在同一响应头下发；`/json` 会在本文件和仓库提交历史中公告弃用过渡期，期间持续返回 `json-v1`。
+- 徽章接口（`/badge.json`、`/badge.svg`）遵循同样策略，当前为 `badge-v1`；`/badge.json` 保持与 Shields.io endpoint 格式兼容。
+
 ## 示例
 
 见 [examples/sample.json](../examples/sample.json)（`114.114.114.114`）。

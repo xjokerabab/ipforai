@@ -144,6 +144,16 @@ README 徽章必须带 `?ip=`：GitHub 的 README 图片由 camo 代理抓取并
 - JSON 模式：`X-IP-for-AI-Schema: json-v1`；**单次 `/json` 只填一个地址族**，`dualStack` 多为 `false`
 - 更新镜像：`curl -fsSL https://ipforai.cc/sh -o check.sh`
 
+## 谁在用（Used by）
+
+如果你的项目把 ipforai 接进来了——README 徽章、`/json?ip=` 接口或 CLI 检测——欢迎[开一个 issue](https://github.com/xjokerabab/ipforai/issues/new?title=Used+by) 告知，我们会把你列在这里：
+
+<!-- 按集成方式排序；新增一行：[项目名](链接) — 用法一句话 -->
+
+_暂无。欢迎成为第一个。_
+
+集成前请阅读 [JSON 接口说明](./docs/api.zh.md) 中的「稳定性承诺」与「跨域（CORS）」：`?ip=` 对任意来源开放，无参形式不对第三方站点开放跨域。
+
 ---
 
 ## License
