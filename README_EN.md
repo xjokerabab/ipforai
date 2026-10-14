@@ -91,6 +91,16 @@ Live result (snapshot while querying 8.8.8.8):
 
 README badges must pass `?ip=`: GitHub fetches README images through its camo proxy and caches them, so a parameterless badge shows the fetcher's score, not the reader's. Endpoint details and color levels: [docs/badge.md](./docs/badge.md) ([中文](./docs/badge.zh.md)).
 
+### MCP (AI clients)
+
+Ask Claude, Cursor or any MCP client "does my current IP work for Claude?":
+
+```bash
+claude mcp add ipforai -- npx -y ipforai-mcp
+```
+
+Two tools: `check_my_ip` (this machine's exit) and `lookup_ip` (a given IP). Honors `HTTPS_PROXY`. Other clients: [mcp/README.md](./mcp/README.md).
+
 ---
 
 ## Scope

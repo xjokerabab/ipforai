@@ -96,6 +96,16 @@ curl --get -fsSL --data-urlencode 'ip=8.8.8.8' 'https://ipforai.cc/json'
 
 README 徽章必须带 `?ip=`：GitHub 的 README 图片由 camo 代理抓取并缓存，不带参数显示的是抓图方的分数，不是读者的。接口细节与颜色档位见 [docs/badge.zh.md](./docs/badge.zh.md)（[English](./docs/badge.md)）。
 
+### MCP（AI 客户端）
+
+在 Claude、Cursor 等支持 MCP 的客户端里直接问「我现在的 IP 能不能用 Claude」：
+
+```bash
+claude mcp add ipforai -- npx -y ipforai-mcp
+```
+
+提供 `check_my_ip`（本机出口）和 `lookup_ip`（指定 IP）两个工具，支持 `HTTPS_PROXY`。其他客户端的配置见 [mcp/README.md](./mcp/README.md)。
+
 ---
 
 ## 能做什么
@@ -135,6 +145,7 @@ README 徽章必须带 `?ip=`：GitHub 的 README 图片由 camo 代理抓取并
 ├── check.sh                 # /sh 的审阅镜像，以官网为准
 ├── docs/api.zh.md / api.md  # /json 说明
 ├── docs/badge.zh.md / badge.md  # /badge.json、/badge.svg 说明
+├── mcp/                     # MCP 服务（npm 包 ipforai-mcp）
 └── examples/sample.json     # 示例响应（单次请求仅一侧有值）
 ```
 

@@ -1,0 +1,42 @@
+{
+  "name": "ipforai-mcp",
+  "version": "0.1.0",
+  "mcpName": "cc.ipforai/ipforai",
+  "description": "MCP server: check whether your exit IP works for ChatGPT, Claude, Gemini and other AI services.",
+  "type": "module",
+  "bin": {
+    "ipforai-mcp": "index.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "engines": {
+    "node": ">=20.18.1"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ip",
+    "ip-lookup",
+    "proxy",
+    "chatgpt",
+    "claude",
+    "ai"
+  ],
+  "homepage": "https://ipforai.cc",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xjokerabab/ipforai.git",
+    "directory": "mcp"
+  },
+  "bugs": "https://github.com/xjokerabab/ipforai/issues",
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "undici": "^7.30.0",
+    "zod": "^4.0.0"
+  }
+}
