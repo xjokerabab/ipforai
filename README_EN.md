@@ -1,10 +1,19 @@
-# ipforai Network Check
+# ipforai · AI Environment Score & IP Check
 
-[中文](./README.md) · [Website](https://ipforai.cc) · [CLI guide](https://ipforai.cc/en/cli) · [Method](https://ipforai.cc/about)
+[中文](./README.md) · [Website](https://ipforai.cc/en) · [CLI guide](https://ipforai.cc/en/cli) · [Method](https://ipforai.cc/en/about)
 
-Network environment checks for **AI access**: public exit profile, network / access / routing attributes, risk signals, environment score, and availability references for ChatGPT, Claude, Gemini, and more (**Available / Limited / Unavailable / Pending**).
+Troubleshoot your network for **AI access** with an AI environment score, public exit IP profiles, risk signals, and service connectivity checks. The website covers 11 AI services: ChatGPT, Claude, Gemini, Grok, DeepSeek, Kimi, Doubao, Qwen, Zhipu, MiniMax, and MiMo.
 
 Results describe the **network only**. They are not account login, subscription, or platform risk decisions.
+
+## Choose an entry point
+
+| Entry point | Use case |
+|-------------|----------|
+| [Website](https://ipforai.cc/en) | View the AI environment score, IP profile, and browser-side connectivity; inspect WebRTC, dual-stack, and routing exits |
+| [CLI](https://ipforai.cc/en/cli) | Check a terminal or server's exit, public AI endpoints, and routing paths; its probe list is maintained separately from the browser version |
+| [JSON](./docs/api.md) | Query exit profiles, the environment score, and AI region-policy references; it does not make live connections from a specified IP |
+| [MCP](./mcp/README.md) | Query JSON profiles from an AI client for its request exit or a specified IP |
 
 ---
 
@@ -110,7 +119,7 @@ Two tools: `check_my_ip` (this machine's exit) and `lookup_ip` (a given IP). Hon
 | Exit profile | Geo, ASN, network type, access form, routing |
 | Risk signals | Proxy-related level, Tor exit when data exists |
 | Environment score | Network reference score — **not** an account score |
-| AI labels | Same as the site: Available / Limited / Unavailable / Pending |
+| AI labels | Server-side profile and region-policy references: Available / Limited / Unavailable / Pending; interpret separately from local endpoint probes |
 | CLI path probes | From **this machine’s exit** only (not for arbitrary `?ip=` as live path) |
 
 **Not included:** ban prediction, unlock guarantees, “IP purity” marketing scores.
