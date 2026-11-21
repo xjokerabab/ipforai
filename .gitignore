@@ -3,6 +3,9 @@
 *~
 .idea/
 .vscode/
+.claude/
+.playwright-mcp/
+.workbuddy-ai/
 .env
 .env.*
 /scripts/sync-check.sh

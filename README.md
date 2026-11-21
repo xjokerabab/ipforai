@@ -1,180 +1,116 @@
-# ipforai · AI 网络环境分与 IP 检测
+# ipforai · AI 网络环境分与出口诊断
 
-[English](./README_EN.md) · [官网](https://ipforai.cc) · [命令行用法](https://ipforai.cc/cli) · [检测方法](https://ipforai.cc/about)
+[English](./README_EN.md) · [官网](https://ipforai.cc) · [AI 天气](https://ipforai.cc/weather) · [分流体检](https://ipforai.cc/rules) · [机房库](https://ipforai.cc/datacenters) · [终端](https://ipforai.cc/cli)
 
-面向 **AI 访问场景**，用 AI 网络环境分、出口 IP 画像、风险信号与服务连通性，帮助排查当前网络环境。官网覆盖 ChatGPT、Claude、Gemini、Grok，以及 DeepSeek、Kimi、豆包、通义千问、智谱清言、MiniMax、MiMo，共 11 家 AI 服务。
+> **是我的问题，还是 AI 的问题？**
+
+面向 **Claude、ChatGPT、Gemini、Grok** 等 AI 访问场景的网络诊断工具：打开即测各家 AI 实际看到的出口 IP、地区合规、机房/家宽属性、分流一致性、底层泄露（WebRTC / DNS & ECS / TCP 首包 / MSS / 被动 JA4 / HTTP/3 QUIC）与官方服务状态，并直接标出每一处扣分属于 **你能修**、**改分流规则** 还是 **换节点**。
 
 结果**只描述网络环境**，不代表账号登录、订阅资格或平台风控结论。
 
-## 选择检测入口
+---
 
-| 入口 | 适用场景 |
-|------|----------|
-| [网页版](https://ipforai.cc) | 查看 AI 网络环境分、IP 画像与浏览器侧连通性，并排查 WebRTC、双栈和分流出口 |
-| [CLI](https://ipforai.cc/cli) | 在终端或服务器检测本机出口、公开 AI 端点与分流路径；探测清单与浏览器版单独维护 |
-| [JSON](./docs/api.zh.md) | 程序查询出口画像、环境质量分及 AI 地区政策参考；不从指定 IP 发起实时连通探测 |
-| [MCP](./mcp/README.md) | 在 AI 客户端调用 JSON 画像查询，查看当前请求出口或指定 IP 的信息 |
+## 全站入口
+
+| 入口 | 地址 | 用途 |
+| --- | --- | --- |
+| 首页全套体检 | [ipforai.cc](https://ipforai.cc) | 同屏对照 Claude / ChatGPT / Gemini / Grok 实际出口、环境分与底层协议泄露 |
+| 专项检测页 | [Claude](https://ipforai.cc/claude-check) · [ChatGPT](https://ipforai.cc/chatgpt-check) · [Gemini](https://ipforai.cc/gemini-check) · [Grok](https://ipforai.cc/grok-check) | 聚焦单家 AI 的网页/API 出口对照、官方状态与按症状排查 |
+| AI 天气 | [ipforai.cc/weather](https://ipforai.cc/weather) | 四家官方状态、近 60 天故障记录与日本/美国/新加坡/英国/香港/台湾/大陆 7 地区 API 连通实测 |
+| 分流规则体检 | [ipforai.cc/rules](https://ipforai.cc/rules) | 浏览器本地解析 Clash / Surge 规则，查 4 家 11 个关键域名是否直连、分裂或被 REJECT |
+| ASN 与机房库 | [ipforai.cc/datacenters](https://ipforai.cc/datacenters) | 实时反查全球 12 万+ ASN（含 PeeringDB 规模），附高频 VPS 机房与家宽对照榜 |
+| 终端守门员（CLI） | [ipforai.cc/cli](https://ipforai.cc/cli) | 纯 POSIX `sh` 只读脚本，排查 VPS、SSH 或本机 Claude Code / Codex / Gemini CLI 出口 |
+| 开发者 JSON / 徽章 | [docs/api.zh.md](./docs/api.zh.md) · [docs/badge.zh.md](./docs/badge.zh.md) | `GET /json` 画像接口与 `/badge.json` / `/badge.svg` 评分徽章 |
+| MCP Server | [mcp/README.md](./mcp/README.md) | 在 Claude Code、Cursor 等 AI 客户端直接查询当前或指定 IP 画像 |
 
 ---
 
-## 一行命令
+## 一行命令（终端守门员）
 
-### 终端检测
+本机电脑终端默认不走系统代理：测代理环境时，请先**开启代理客户端的 TUN 模式**，或使用下方第二条命令在子壳里临时传入本地代理端口。
 
-快捷执行（`sh` 和 `bash` 均可）：
 ```bash
+# 1. VPS / 服务器，或本机已开 TUN 模式
 curl -fsSL https://ipforai.cc/sh | sh
-curl -fsSL https://ipforai.cc/sh | bash
+
+# 2. 本机不开 TUN，从代理视角测（7890 换成你的端口：Clash 7890 / Surge 6152 / v2rayN 10808）
+(export HTTPS_PROXY=http://127.0.0.1:7890 ALL_PROXY=socks5h://127.0.0.1:7890;
+  curl -fsSL https://ipforai.cc/sh | sh)
+
+# 3. 只查指定 IP 画像与环境质量分（不测本机链路）
+curl -fsSL https://ipforai.cc/sh | sh -s -- 8.8.8.8
+
+# 4. CI / 跳过确认并展开详细诊断
+curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
 ```
 
-先审阅再执行（推荐）：
+先下载审阅再执行（推荐）：
 
 ```bash
 curl -fsSL https://ipforai.cc/sh -o /tmp/ipforai-check.sh
 less /tmp/ipforai-check.sh
-sh /tmp/ipforai-check.sh -y
-# 也可以用 bash 执行：bash /tmp/ipforai-check.sh -y
+sh /tmp/ipforai-check.sh
 ```
 
-常用参数：
+> 权威脚本入口始终为 `https://ipforai.cc/sh`；本仓库中的 [`check.sh`](./check.sh) 为审阅镜像（当前版本：`v3.3`）。
 
-```bash
-# 跳过确认
-curl -fsSL https://ipforai.cc/sh | sh -s -- -y
-
-# 指定 IP（仅画像与环境质量分，不含本机 AI 链路探测）
-curl -fsSL https://ipforai.cc/sh | sh -s -- -y 8.8.8.8
-
-# 详细输出
-curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
-```
-
-以上命令中的 `sh` 均可替换为 `bash`；两者执行同一份 POSIX 兼容脚本。
-
-> **权威脚本地址始终是官网** `https://ipforai.cc/sh`。本仓库中的 `check.sh` 为审阅镜像；请以官网版本为准。
-
-完整参数、探测范围和结果解读见[命令行检测指南](https://ipforai.cc/cli)。
-
-### 检测效果
-
-以下为脱敏的双栈终端检测示例。IP、时区、耗时和服务结果会随实际网络环境变化。
+### 终端输出示例
 
 ![终端检测示例：出口总览与 AI 服务链路](./docs/images/terminal-report-overview.png)
 
 ![终端检测示例：AI 分流出口与环境质量分](./docs/images/terminal-report-routing.png)
 
-### 开发者 JSON（GET）
+---
+
+## 开发者 JSON（`GET /json`）
 
 ```bash
-# GET /json：查看服务端看到的本次请求源 IP
+# 查看本次请求的出口画像
 curl -fsSL 'https://ipforai.cc/json'
 
-# GET /json?ip=：服务端查询指定 IPv4 或 IPv6
-curl -fsSL 'https://ipforai.cc/json?ip=8.8.8.8'
-curl -fsSL 'https://ipforai.cc/json?ip=2001:4860:4860::8888'
-
-# 强制分别查看请求的 IPv4 / IPv6 出口
+# 强制 IPv4 / IPv6
 curl -4 -fsSL 'https://ipforai.cc/json'
 curl -6 -fsSL 'https://ipforai.cc/json'
 
-# 使用 GET 参数编码传入 ip
-curl --get -fsSL --data-urlencode 'ip=8.8.8.8' 'https://ipforai.cc/json'
+# 查询指定 IP（支持 CDN 缓存 600s，不对第三方暴露无参跨域）
+curl -fsSL 'https://ipforai.cc/json?ip=8.8.8.8'
 ```
 
-`ip` 是唯一可选查询参数：省略或留空时查询本次请求源 IP；填入地址时只做服务端画像查询，不会从该 IP 发起实时连接，也不会读取调用方本机系统或浏览器数据。非法 IP 返回 HTTP 400。合法 `?ip=` 响应带 `Cache-Control: public, max-age=600`，允许 CDN 缓存；无参响应始终 `private, no-store`。
+完整字段说明与稳定性承诺见 [docs/api.zh.md](./docs/api.zh.md)（[English](./docs/api.md)），示例响应见 [examples/sample.json](./examples/sample.json)。
 
-字段说明见 [docs/api.zh.md](./docs/api.zh.md)（[English](./docs/api.md)），示例响应见 [examples/sample.json](./examples/sample.json)。
+---
 
-### README 徽章（GET）
-
-给任意项目 README 挂一张「AI 网络评分」徽章，点击回到官网结果页：
-
-```markdown
-[![AI 网络评分](https://img.shields.io/endpoint?url=https%3A%2F%2Fipforai.cc%2Fbadge.json%3Fip%3D8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
-```
-
-自托管 SVG（不依赖 Shields.io，任意网页 `<img>` 可直接嵌入）：
+## README 评分徽章
 
 ```markdown
 [![AI 网络评分](https://ipforai.cc/badge.svg?ip=8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
 ```
 
-实际效果（8.8.8.8 查询时的快照）：
+[![AI 网络评分](https://ipforai.cc/badge.svg?ip=8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
 
-[![AI 网络评分](https://img.shields.io/endpoint?url=https%3A%2F%2Fipforai.cc%2Fbadge.json%3Fip%3D8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
+> README 徽章必须带 `?ip=`（否则显示的是 GitHub camo 抓图服务器的分数）。详见 [docs/badge.zh.md](./docs/badge.zh.md)。
 
-README 徽章必须带 `?ip=`：GitHub 的 README 图片由 camo 代理抓取并缓存，不带参数显示的是抓图方的分数，不是读者的。接口细节与颜色档位见 [docs/badge.zh.md](./docs/badge.zh.md)（[English](./docs/badge.md)）。
+---
 
-### MCP（AI 客户端）
-
-在 Claude、Cursor 等支持 MCP 的客户端里直接问「我现在的 IP 能不能用 Claude」：
+## MCP（AI 客户端集成）
 
 ```bash
 claude mcp add ipforai -- npx -y ipforai-mcp
 ```
 
-提供 `check_my_ip`（本机出口）和 `lookup_ip`（指定 IP）两个工具，支持 `HTTPS_PROXY`。其他客户端的配置见 [mcp/README.md](./mcp/README.md)。
+提供 `check_my_ip`（本机出口）和 `lookup_ip`（指定 IP）两个工具，支持 `HTTPS_PROXY`。详见 [mcp/README.md](./mcp/README.md)。
 
 ---
 
-## 能做什么
+## 边界说明
 
-| 能力 | 说明 |
-|------|------|
-| 出口画像 | 地理位置、ASN、网络类型、接入形态、路由属性 |
-| 风险信号 | 代理相关风险档位、Tor 出口等（有数据时） |
-| 环境质量分 | 网络环境参考分，**不是** AI 账号分 |
-| AI 可用性参考 | 服务端画像与地区政策参考：可用 / 受限 / 不可用 / 待确认；与本机端点实测分开解读 |
-| 终端链路探测 | CLI 在本机出口下探测公开入口与分流（指定 IP 时不跑链路） |
-
-## 明确不做什么
-
-- 不判断账号是否会被封、能否登录、订阅是否有效
-- 不提供「纯净度 / 防封 / 解锁」承诺
-- 不把任意 IP 的字符串当成「从该 IP 真实访问 AI」的连通探测（指定 IP 只查画像）
-
----
-
-## 依赖与边界
-
-- **CLI**：POSIX `sh`、`curl` 和系统常用命令；只读检测，不写系统配置、不安装软件、不需要 API Key
-- **网络请求**：CLI 会向 [ipforai.cc](https://ipforai.cc)、IPv4 探测域名及脚本列出的 AI/厂商公开域名发起探测；JSON 只请求官网后端画像接口
-- **数据来源**：离线库与规则由官网维护，仓库中的 `check.sh` 只是审阅镜像
-- 会创建临时目录并在退出时删除
-- 一次 TCP 请求只能看到一个源地址族；双栈请 `-4` / `-6` 各查一次
-
----
-
-## 仓库结构
-
-```text
-.
-├── README.md / README_EN.md
-├── LICENSE
-├── check.sh                 # /sh 的审阅镜像，以官网为准
-├── docs/api.zh.md / api.md  # /json 说明
-├── docs/badge.zh.md / badge.md  # /badge.json、/badge.svg 说明
-├── mcp/                     # MCP 服务（npm 包 ipforai-mcp）
-└── examples/sample.json     # 示例响应（单次请求仅一侧有值）
-```
-
-## 更新
-
-- 脚本版本以运行输出中的版本号及响应头 `X-IP-for-AI-Check-Version` 为准（当前镜像：`v2.1`）
-- JSON 模式：`X-IP-for-AI-Schema: json-v1`；**单次 `/json` 只填一个地址族**，`dualStack` 多为 `false`
-- 更新镜像：`curl -fsSL https://ipforai.cc/sh -o check.sh`
-
-## 谁在用（Used by）
-
-如果你的项目把 ipforai 接进来了——README 徽章、`/json?ip=` 接口或 CLI 检测——欢迎[开一个 issue](https://github.com/xjokerabab/ipforai/issues/new?title=Used+by) 告知，我们会把你列在这里：
-
-<!-- 按集成方式排序；新增一行：[项目名](链接) — 用法一句话 -->
-
-_暂无。欢迎成为第一个。_
-
-集成前请阅读 [JSON 接口说明](./docs/api.zh.md) 中的「稳定性承诺」与「跨域（CORS）」：`?ip=` 对任意来源开放，无参形式不对第三方站点开放跨域。
-
----
+- **只读检测**：CLI 不改本机配置、不装软件、不需要 API Key，临时目录退出即删。
+- **不给账号承诺**：不预测账号是否被封、不提供“纯净度/防封/解锁”保证。
+- **本仓库结构**：
+  - `check.sh`：官网 `/sh` 审阅镜像（`v3.3`）
+  - `docs/`：`/json` 与 `/badge` 接口文档
+  - `mcp/`：`ipforai-mcp` npm 包源码
+  - `examples/sample.json`：JSON 接口响应示例
 
 ## License
 

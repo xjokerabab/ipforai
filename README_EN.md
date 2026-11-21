@@ -1,150 +1,89 @@
-# ipforai · AI Environment Score & IP Check
+# ipforai · AI Network Environment Score & IP Diagnostics
 
-[中文](./README.md) · [Website](https://ipforai.cc/en) · [CLI guide](https://ipforai.cc/en/cli) · [Method](https://ipforai.cc/en/about)
+[中文](./README.md) · [Website](https://ipforai.cc) · [AI Weather](https://ipforai.cc/weather) · [Routing Checker](https://ipforai.cc/rules) · [ASN Database](https://ipforai.cc/datacenters) · [CLI](https://ipforai.cc/cli)
 
-Troubleshoot your network for **AI access** with an AI environment score, public exit IP profiles, risk signals, and service connectivity checks. The website covers 11 AI services: ChatGPT, Claude, Gemini, Grok, DeepSeek, Kimi, Doubao, Qwen, Zhipu, MiniMax, and MiMo.
+Network diagnostics built for **Claude, ChatGPT, Gemini, and Grok** access: check the actual exit IP each AI service sees, region eligibility, datacenter vs. residential network profile, split-routing consistency, protocol leaks (WebRTC, DNS/ECS, TCP SYN/MSS, passive JA4, HTTP/3 QUIC), and live official service status.
 
-Results describe the **network only**. They are not account login, subscription, or platform risk decisions.
-
-## Choose an entry point
-
-| Entry point | Use case |
-|-------------|----------|
-| [Website](https://ipforai.cc/en) | View the AI environment score, IP profile, and browser-side connectivity; inspect WebRTC, dual-stack, and routing exits |
-| [CLI](https://ipforai.cc/en/cli) | Check a terminal or server's exit, public AI endpoints, and routing paths; its probe list is maintained separately from the browser version |
-| [JSON](./docs/api.md) | Query exit profiles, the environment score, and AI region-policy references; it does not make live connections from a specified IP |
-| [MCP](./mcp/README.md) | Query JSON profiles from an AI client for its request exit or a specified IP |
+Results describe the **network environment only** — not account login, subscription status, or platform risk verdicts.
 
 ---
 
-## One-liners
+## Entry Points
 
-### Terminal
+| Tool | URL | What it checks |
+| --- | --- | --- |
+| Full Web Dashboard | [ipforai.cc](https://ipforai.cc) | Side-by-side Claude / ChatGPT / Gemini / Grok exits, environment score, and leak checks |
+| Service Check Pages | [Claude](https://ipforai.cc/claude-check) · [ChatGPT](https://ipforai.cc/chatgpt-check) · [Gemini](https://ipforai.cc/gemini-check) · [Grok](https://ipforai.cc/grok-check) | Per-service web & API exit comparison, official status, and troubleshooting guides |
+| AI Weather | [ipforai.cc/weather](https://ipforai.cc/weather) | Live official status, 60-day incident history, and 7-region API reachability |
+| Routing Rule Checker | [ipforai.cc/rules](https://ipforai.cc/rules) | Client-side Clash / Surge rule analyzer for 11 critical AI domains |
+| ASN & Datacenter DB | [ipforai.cc/datacenters](https://ipforai.cc/datacenters) | Search 120k+ global ASNs with PeeringDB metadata and curated VPS vs. residential list |
+| CLI Script | [ipforai.cc/cli](https://ipforai.cc/cli) | Read-only POSIX `sh` script for VPS, SSH, and local AI CLI tools (Claude Code / Codex) |
+| Developer JSON & Badges | [docs/api.md](./docs/api.md) · [docs/badge.md](./docs/badge.md) | `GET /json` profile API and `/badge.json` / `/badge.svg` |
+| MCP Server | [mcp/README.md](./mcp/README.md) | Query IP profiles directly inside Claude Code, Cursor, or any MCP client |
 
-Quick execution (`sh` or `bash`):
+---
+
+## CLI Quick Start
+
+On a local machine, terminals ignore the OS system proxy by default. Either enable **TUN mode** in your proxy client, or pass your local proxy port in a subshell so both `curl` and `sh` use it:
+
 ```bash
+# 1. VPS / server, or local terminal with TUN mode enabled
 curl -fsSL https://ipforai.cc/sh | sh
-curl -fsSL https://ipforai.cc/sh | bash
+
+# 2. Local terminal without TUN (replace 7890 with your proxy port)
+(export HTTPS_PROXY=http://127.0.0.1:7890 ALL_PROXY=socks5h://127.0.0.1:7890;
+  curl -fsSL https://ipforai.cc/sh | sh)
+
+# 3. Profile a specific IP only (skips local probes)
+curl -fsSL https://ipforai.cc/sh | sh -s -- 8.8.8.8
+
+# 4. Non-interactive / detailed mode
+curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
 ```
 
-Review before run (recommended):
+Review before running (recommended):
 
 ```bash
 curl -fsSL https://ipforai.cc/sh -o /tmp/ipforai-check.sh
 less /tmp/ipforai-check.sh
-sh /tmp/ipforai-check.sh -y
-# Or use bash: bash /tmp/ipforai-check.sh -y
+sh /tmp/ipforai-check.sh
 ```
 
-```bash
-curl -fsSL https://ipforai.cc/sh | sh -s -- -y
-curl -fsSL https://ipforai.cc/sh | sh -s -- -y 8.8.8.8
-curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
-```
-
-The `sh` in these examples can be replaced with `bash`; both run the same POSIX-compatible script.
-
-> **Canonical script URL is always** `https://ipforai.cc/sh`. `check.sh` in this repo is a review mirror; use the website version as the source of truth.
-
-For all arguments, probe coverage, and result interpretation, see the [CLI guide](https://ipforai.cc/en/cli).
-
-### Example output
-
-These are redacted dual-stack terminal examples. IPs, time zones, latencies, and service results vary with the actual network environment.
+> Canonical script URL: `https://ipforai.cc/sh`. [`check.sh`](./check.sh) in this repo is a review mirror (`v3.3`).
 
 ![Terminal example: exit overview and AI service connectivity](./docs/images/terminal-report-overview.png)
 
 ![Terminal example: AI routing exits and environment score](./docs/images/terminal-report-routing.png)
 
-### Developer JSON (GET)
+---
+
+## Developer JSON (`GET /json`)
 
 ```bash
-# GET /json: profile the request source IP observed by the server
 curl -fsSL 'https://ipforai.cc/json'
-
-# GET /json?ip=: server-side lookup for a specified IPv4 or IPv6
-curl -fsSL 'https://ipforai.cc/json?ip=8.8.8.8'
-curl -fsSL 'https://ipforai.cc/json?ip=2001:4860:4860::8888'
-
-# Force the request over IPv4 or IPv6
 curl -4 -fsSL 'https://ipforai.cc/json'
 curl -6 -fsSL 'https://ipforai.cc/json'
-
-# Encode ip as a GET parameter
-curl --get -fsSL --data-urlencode 'ip=8.8.8.8' 'https://ipforai.cc/json'
+curl -fsSL 'https://ipforai.cc/json?ip=8.8.8.8'
 ```
 
-`ip` is the only optional query parameter. Omit it or leave it empty to profile the request source IP; provide an address for a server-side profile lookup. It does not initiate a live connection from that address or inspect the caller's local system or browser. An invalid address returns HTTP 400. A valid `?ip=` response carries `Cache-Control: public, max-age=600` (CDN cacheable); the parameterless form is always `private, no-store`.
+See [docs/api.md](./docs/api.md) and [examples/sample.json](./examples/sample.json).
 
-See [docs/api.md](./docs/api.md) ([中文](./docs/api.zh.md)) and [examples/sample.json](./examples/sample.json).
+---
 
-One HTTP request fills only one of `ipv4` / `ipv6` (`dualStack` is usually `false`).
-
-### README badge (GET)
-
-Add an "AI network score" badge to any project README; clicking it opens the result page on the site:
-
-```markdown
-[![AI network score](https://img.shields.io/endpoint?url=https%3A%2F%2Fipforai.cc%2Fbadge.json%3Fip%3D8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
-```
-
-Self-hosted SVG (no Shields.io dependency, works in any `<img>`):
+## README Badge & MCP
 
 ```markdown
 [![AI network score](https://ipforai.cc/badge.svg?ip=8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
 ```
 
-Live result (snapshot while querying 8.8.8.8):
-
-[![AI network score](https://img.shields.io/endpoint?url=https%3A%2F%2Fipforai.cc%2Fbadge.json%3Fip%3D8.8.8.8)](https://ipforai.cc/?ip=8.8.8.8)
-
-README badges must pass `?ip=`: GitHub fetches README images through its camo proxy and caches them, so a parameterless badge shows the fetcher's score, not the reader's. Endpoint details and color levels: [docs/badge.md](./docs/badge.md) ([中文](./docs/badge.zh.md)).
-
-### MCP (AI clients)
-
-Ask Claude, Cursor or any MCP client "does my current IP work for Claude?":
-
 ```bash
 claude mcp add ipforai -- npx -y ipforai-mcp
 ```
 
-Two tools: `check_my_ip` (this machine's exit) and `lookup_ip` (a given IP). Honors `HTTPS_PROXY`. Other clients: [mcp/README.md](./mcp/README.md).
+Details: [docs/badge.md](./docs/badge.md) · [mcp/README.md](./mcp/README.md).
 
 ---
-
-## Scope
-
-| Included | Notes |
-|----------|--------|
-| Exit profile | Geo, ASN, network type, access form, routing |
-| Risk signals | Proxy-related level, Tor exit when data exists |
-| Environment score | Network reference score — **not** an account score |
-| AI labels | Server-side profile and region-policy references: Available / Limited / Unavailable / Pending; interpret separately from local endpoint probes |
-| CLI path probes | From **this machine’s exit** only (not for arbitrary `?ip=` as live path) |
-
-**Not included:** ban prediction, unlock guarantees, “IP purity” marketing scores.
-
----
-
-## Runtime boundary
-
-- **CLI:** POSIX `sh`, `curl`, and standard system utilities; it does not install packages or write system configuration.
-- **Network requests:** the CLI probes `ipforai.cc`, the IPv4 probe host, and the public AI/vendor endpoints listed in the script. The JSON API requests the website backend profile service.
-- **Mirror:** `check.sh` is provided for review; the website endpoint is the canonical runtime source.
-
-## Dual stack
-
-One TCP connection exposes one source family. Use `curl -4` / `curl -6`, or `?ip=` for a specific address. The JSON shape always has `ipv4` / `ipv6` slots; the unused side is `null`.
-
-## Used by
-
-Does your project integrate ipforai — a README badge, the `/json?ip=` API, or the CLI check? [Open an issue](https://github.com/xjokerabab/ipforai/issues/new?title=Used+by) and we will list you here:
-
-<!-- Sorted by integration type; add one line: [Project](link) — one-line usage note -->
-
-_Nothing yet. Be the first._
-
-Before integrating, read "Stability promise" and "CORS" in the [JSON API docs](./docs/api.md): `?ip=` is open to any origin; the parameterless form is not open to third-party sites.
 
 ## License
 
