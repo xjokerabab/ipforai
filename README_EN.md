@@ -56,7 +56,7 @@ curl -fsSL 'https://ipforai.cc/json?ip=8.8.8.8'
 claude mcp add ipforai -- npx -y ipforai-mcp
 ```
 
-Docs: [docs/api.md](./docs/api.md) · [docs/badge.md](./docs/badge.md) · [mcp/README.md](./mcp/README.md)
+4 tools: `check_my_ip`, `lookup_ip`, `check_ai_weather`, and `lookup_asn`. Docs: [docs/api.md](./docs/api.md) · [docs/badge.md](./docs/badge.md) · [mcp/README.md](./mcp/README.md)
 
 ## License
 

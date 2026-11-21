@@ -2,19 +2,19 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "cc.ipforai/ipforai",
   "title": "IP for AI",
-  "description": "Check if your exit IP works for ChatGPT, Claude, Gemini: ASN, proxy/IDC type, risk, AI availability",
+  "description": "Check exit IP, AI official status (Claude/ChatGPT/Gemini/Grok), 7-region API reachability, and ASN/datacenter classification via ipforai.cc",
   "websiteUrl": "https://ipforai.cc",
   "repository": {
     "url": "https://github.com/xjokerabab/ipforai",
     "source": "github",
     "subfolder": "mcp"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "ipforai-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       }

@@ -87,7 +87,7 @@ curl -fsSL 'https://ipforai.cc/json?ip=8.8.8.8'
 claude mcp add ipforai -- npx -y ipforai-mcp
 ```
 
-详见 [mcp/README.md](./mcp/README.md)。
+提供 `check_my_ip`（本机出口）、`lookup_ip`（指定 IP）、`check_ai_weather`（官方状态与 7 地区连通）和 `lookup_asn`（全球 ASN 反查）四个工具，详见 [mcp/README.md](./mcp/README.md)。
 
 ---
 

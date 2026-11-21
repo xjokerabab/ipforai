@@ -1,8 +1,8 @@
 {
   "name": "ipforai-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "mcpName": "cc.ipforai/ipforai",
-  "description": "MCP server: check whether your exit IP works for ChatGPT, Claude, Gemini and other AI services.",
+  "description": "MCP server for ipforai.cc: check exit IP, AI official status (weather), regional API reachability, and ASN/datacenter classification.",
   "type": "module",
   "bin": {
     "ipforai-mcp": "index.js"
