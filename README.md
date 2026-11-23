@@ -40,6 +40,12 @@ curl -fsSL https://ipforai.cc/sh | sh -s -- 8.8.8.8
 
 # 跳过确认 + 展开详细诊断
 curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
+
+# 一屏摘要（出口、四家 AI 可达性与基础分）
+curl -fsSL https://ipforai.cc/sh | sh -s -- -s
+
+# 输出 JSON 到 stdout（隐含 -y，供其他脚本集成）
+curl -fsSL https://ipforai.cc/sh | sh -s -- -j
 ```
 
 <details>
@@ -55,7 +61,7 @@ sh /tmp/ipforai-check.sh
 
 ![ipforai 终端守门员实测输出](./docs/images/terminal-report.png)
 
-> 权威脚本地址：`https://ipforai.cc/sh`；本仓库 [`check.sh`](./check.sh) 为审阅镜像（`v3.3`）。
+> 权威脚本地址：`https://ipforai.cc/sh`；本仓库 [`check.sh`](./check.sh) 为审阅镜像（`v3.5`）。
 
 ---
 

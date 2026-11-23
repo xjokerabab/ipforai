@@ -7,6 +7,8 @@
 #   curl -fsSL https://ipforai.cc/sh | sh -s -- 8.8.8.8
 #   curl -fsSL https://ipforai.cc/sh | sh -s -- -y
 #   curl -fsSL https://ipforai.cc/sh | sh -s -- -d
+#   curl -fsSL https://ipforai.cc/sh | sh -s -- -s
+#   curl -fsSL https://ipforai.cc/sh | sh -s -- -j
 #
 # 建议先审阅再执行（更安全）：
 #   curl -fsSL https://ipforai.cc/sh -o /tmp/ipforai-check.sh
@@ -19,8 +21,8 @@
 #   - 只读检测：不写本机配置、不安装软件、不需要 API key
 #   - 会创建临时目录存放探测结果，进程结束时删除
 #   - 分段流式输出：每测完一段立即显示，不卡屏
-#   - 出口画像、环境质量分与网页共用后端 API；脚本不本地改写评分规则
-#   - 指定 IP 时只查询该 IP 的画像与环境质量分，不把本机链路结果当成该 IP 的连通性
+#   - 出口画像、出口 IP 基础分与网页共用后端 API；脚本不本地改写评分规则
+#   - 指定 IP 时只查询该 IP 的画像与出口 IP 基础分，不把本机链路结果当成该 IP 的连通性
 #   - 纯 POSIX sh，运行时只依赖 curl；结果描述网络环境，不代表账号结论
 #
 # 版本号以 SCRIPT_VERSION 为准（/sh 响应头 X-IP-for-AI-Check-Version 同源）。
@@ -37,7 +39,7 @@ if [ -n "${IPFORAI_API:-}" ] && [ -z "${IPFORAI_WEB:-}" ]; then
   esac
 fi
 NET_TIMEOUT=8
-SCRIPT_VERSION="v3.3"
+SCRIPT_VERSION="v3.5"
 CHECK_STARTED_AT=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo '未知')
 CHECK_STARTED_EPOCH=$(date +%s 2>/dev/null || echo '')
 LOCAL_ZONE=$(date +%Z 2>/dev/null || echo '未知')
@@ -47,6 +49,7 @@ LOCAL_UTC_OFFSET=$(date +%z 2>/dev/null || echo '')
 
 ASSUME_YES=0
 DETAIL=0
+OUT_MODE=full
 TARGET_IP=""
 TEST_IP="${IPFORAI_TEST_IP:-}"
 
@@ -54,16 +57,20 @@ for arg in "$@"; do
   case "$arg" in
     -y|--yes) ASSUME_YES=1 ;;
     -d|--detail) DETAIL=1 ;;
+    -s|--summary) [ "$OUT_MODE" != json ] && OUT_MODE=summary ;;
+    -j|--json) OUT_MODE=json; ASSUME_YES=1 ;;
     -h|--help)
       printf 'ipforai 终端守门员  %s\n' "$SCRIPT_VERSION"
       printf '官方入口：https://ipforai.cc/sh\n\n'
       printf '用法：\n'
-      printf '  curl -fsSL https://ipforai.cc/sh | sh -s -- [IP] [-y] [-d]\n'
-      printf '  sh /tmp/ipforai-check.sh [IP] [-y] [-d]   # 先下载审阅后再执行\n\n'
+      printf '  curl -fsSL https://ipforai.cc/sh | sh -s -- [IP] [-y] [-d] [-s] [-j]\n'
+      printf '  sh /tmp/ipforai-check.sh [IP] [-y] [-d] [-s] [-j]   # 先下载审阅后再执行\n\n'
       printf '参数：\n'
-      printf '  IP    仅查询该 IP 的画像与环境质量分（不含本机链路 / 分流 / 遥测）\n'
+      printf '  IP    仅查询该 IP 的画像与出口 IP 基础分（不含本机链路 / 分流 / 遥测）\n'
       printf '  -y    跳过确认直接执行\n'
-      printf '  -d    展开扩展 AI 工具分流表与 HTTP 状态详情\n\n'
+      printf '  -d    展开扩展 AI 工具分流表与 HTTP 状态详情\n'
+      printf '  -s    一屏摘要（出口、四家 AI 可达性、基础分、待处理项）\n'
+      printf '  -j    输出 JSON 到 stdout（隐含 -y，无颜色，供脚本集成）\n\n'
       printf '环境变量：\n'
       printf '  IPFORAI_TEST_IP  本地 API 只返回回环地址时使用的测试出口\n\n'
       printf '说明：只读检测；分段流式输出；结果不代表账号结论。\n'
@@ -76,7 +83,7 @@ done
 
 # ---------- 配色 ----------
 
-if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+if [ "$OUT_MODE" != json ] && [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   R=$(printf '\033[0m');   B=$(printf '\033[1m')
   TITLE=$(printf '\033[1;96m'); DIM=$(printf '\033[2m')
   GRN=$(printf '\033[92m'); YEL=$(printf '\033[93m')
@@ -103,6 +110,49 @@ extract_products() {
 }
 
 fetch() { curl -fsS -m "$NET_TIMEOUT" "$1" 2>/dev/null; }
+
+json_esc() {
+  { printf '%s' "$1" | LC_ALL=C tr '\r\t\n' '   ' | LC_ALL=C tr -d '\000-\037\177'; printf '\n'; } \
+    | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\n'
+}
+
+jstr() {
+  if [ -z "$1" ]; then
+    printf 'null'
+  else
+    printf '"%s"' "$(json_esc "$1")"
+  fi
+}
+
+jnum() {
+  case "$1" in
+    ''|-) printf 'null' ;;
+    -*)
+      case "${1#-}" in
+        *[!0-9]*) printf 'null' ;;
+        *) printf '%s' "$1" ;;
+      esac
+      ;;
+    *[!0-9]*) printf 'null' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+fail_exit() {
+  case "$OUT_MODE" in
+    full)
+      printf '  %s%s%s\n\n' "$YEL" "$1" "$R"
+      ;;
+    summary)
+      printf '  %s%s%s\n\n' "$YEL" "$1" "$R" >&3
+      ;;
+    json)
+      printf '{"tool":"ipforai-check","version":"%s","error":"%s"}\n' \
+        "$(json_esc "$SCRIPT_VERSION")" "$(json_esc "$1")" >&3
+      ;;
+  esac
+  exit 1
+}
 
 # 需要用户处理的问题统一记到文件，末尾 [07] 汇总（各段多在管道子 shell 里，变量带不出来）
 add_advice() { printf '%s\n' "$1" >> "$TMP/advice"; }
@@ -232,9 +282,9 @@ dns_official_tag() {
 if [ "$ASSUME_YES" -eq 0 ] && [ -e /dev/tty ] && [ -t 2 ]; then
   printf '%sipforai 终端守门员（只读 · 分段实时输出）%s\n' "$TITLE" "$R"
   if [ -n "$TARGET_IP" ]; then
-    printf '%s将查询指定 IP 的公开画像与环境质量分；不修改本机配置，不需要 API key。%s\n' "$DIM" "$R"
+    printf '%s将查询指定 IP 的公开画像与出口 IP 基础分；不修改本机配置，不需要 API key。%s\n' "$DIM" "$R"
   else
-    printf '%s将分段检测：出口画像 → 网页/API 分流与耗时 → 双栈/IPv6 泄漏/DNS → 遥测域名 → TLS/TCP 延迟差 → 环境分 → 处理建议。%s\n' "$DIM" "$R"
+    printf '%s将分段检测：出口画像 → 网页/API 分流与耗时 → 双栈/IPv6 泄漏/DNS → 遥测域名 → TLS/TCP 延迟差 → 出口 IP 基础分 → 处理建议。%s\n' "$DIM" "$R"
     printf '%s不修改本机配置，不需要 API key；临时文件在结束后删除。%s\n' "$DIM" "$R"
   fi
   printf '按 Enter 继续 · Ctrl-C 取消 '
@@ -245,6 +295,11 @@ fi
 TMP=$(mktemp -d 2>/dev/null) || { printf '无法创建临时目录\n' >&2; exit 1; }
 trap 'rm -rf "$TMP"' EXIT
 trap '[ -t 1 ] && printf "\r\033[2K"; rm -rf "$TMP"; exit 130' INT TERM
+
+if [ "$OUT_MODE" != full ]; then
+  [ "$OUT_MODE" = summary ] && printf '  正在检测（约 15–30 秒）…\n'
+  exec 3>&1 1>/dev/null
+fi
 
 # ---------- 头部立即输出 ----------
 
@@ -344,8 +399,7 @@ if [ -z "$TARGET_IP" ] && [ -z "$IP4" ] && [ -z "$IP6" ]; then
   if [ -n "$TEST_IP" ]; then
     TARGET_IP="$TEST_IP"
   else
-    printf '  %s未能识别公网出口（收到回环地址或探测未返回有效 IP）。%s\n\n' "$YEL" "$R"
-    exit 1
+    fail_exit '未能识别公网出口（收到回环地址或探测未返回有效 IP）。'
   fi
 fi
 
@@ -362,8 +416,7 @@ if [ -n "$IP6" ]; then ( fetch "$API_BASE/api/ip-profile?ip=$IP6" > "$TMP/p_v6" 
 spin_wait "正在查询出口画像" "$p_pv4" "$p_pv6"
 
 if [ ! -s "$TMP/p_v4" ] && [ ! -s "$TMP/p_v6" ]; then
-  printf '  %s未能获取 IP 画像，请稍后重试。%s\n\n' "$YEL" "$R"
-  exit 1
+  fail_exit '未能获取 IP 画像，请稍后重试。'
 fi
 
 profile_of() {
@@ -957,10 +1010,18 @@ EOF
     TCP_SRTT=$(json_num "$TCP_JSON" serverRttMs)
     SYN_O=$(json_scope "$TCP_JSON" syn)
     SYN_OS=$(json_str "$SYN_O" guessedOsLabel)
+    SYN_OS_KEY=$(json_str "$SYN_O" guessedOs)
     SYN_TTL=$(json_num "$SYN_O" ttl)
     SYN_INIT=$(json_num "$SYN_O" initialTtl)
     SYN_OPTS=$(json_str "$SYN_O" options)
     SYN_MSS=$(json_num "$SYN_O" mss)
+
+    LOCAL_OS_FAMILY='unknown'
+    case "$OS_NAME" in
+      Darwin) LOCAL_OS_FAMILY='macos_ios' ;;
+      Linux) LOCAL_OS_FAMILY='linux' ;;
+      MINGW*|MSYS*|CYGWIN*) LOCAL_OS_FAMILY='windows' ;;
+    esac
 
     CLIENT_RTT=$(awk -F'|' '
       /^ping[123]\|204\|/ { vals[++n] = $3 * 1000 }
@@ -974,8 +1035,16 @@ EOF
       }
     ' "$TMP/tcp_pings" 2>/dev/null)
 
-    [ -n "$SYN_OS" ] && printf '  %sSYN 协议栈%s  %s · TTL %s/%s · MSS %s · 选项 %s\n' \
-      "$DIM" "$R" "$SYN_OS" "${SYN_TTL:-?}" "${SYN_INIT:-?}" "${SYN_MSS:-?}" "${SYN_OPTS:-?}"
+    if [ -n "$SYN_OS" ]; then
+      if [ -n "$SYN_OS_KEY" ] && [ "$SYN_OS_KEY" != "unknown" ] && [ "$LOCAL_OS_FAMILY" != "unknown" ] && [ "$SYN_OS_KEY" != "$LOCAL_OS_FAMILY" ]; then
+        printf '  %sSYN 协议栈%s  %s · TTL %s/%s · MSS %s · 选项 %s  %s! 与本机系统不符（代理转发特征）%s\n' \
+          "$DIM" "$R" "$SYN_OS" "${SYN_TTL:-?}" "${SYN_INIT:-?}" "${SYN_MSS:-?}" "${SYN_OPTS:-?}" "$YEL" "$R"
+        add_advice "TCP 首包协议栈 ($SYN_OS) 与本机 ($OS_LABEL) 不符 → 经代理节点转发时的固有特征，仅直连可消除"
+      else
+        printf '  %sSYN 协议栈%s  %s · TTL %s/%s · MSS %s · 选项 %s\n' \
+          "$DIM" "$R" "$SYN_OS" "${SYN_TTL:-?}" "${SYN_INIT:-?}" "${SYN_MSS:-?}" "${SYN_OPTS:-?}"
+      fi
+    fi
 
     if [ -n "$TCP_SRTT" ] && [ -n "$CLIENT_RTT" ]; then
       RTT_EVAL=$(awk -v s="$TCP_SRTT" -v c="$CLIENT_RTT" 'BEGIN {
@@ -1025,19 +1094,19 @@ EOF
 fi
 
 # ==============================================================================
-# 最终阶段：环境质量分
+# 最终阶段：出口 IP 基础分
 # ==============================================================================
 
 ADVICE_N=0
 [ -s "$TMP/advice" ] && ADVICE_N=$(wc -l < "$TMP/advice" | tr -d ' ')
 
-# 环境分只评估出口 IP；终端侧问题（时区、漏代理、中转等）单独汇总，不计入分数
+# 出口 IP 基础分只评估出口 IP 本身；终端侧协同问题（时区、漏代理、中转等）单独汇总，不计入此分
 print_terminal_check() {
   [ -n "$TARGET_IP" ] && return
   if [ "$ADVICE_N" -gt 0 ]; then
-    printf '  %s终端检查%s    %s! %s 项需处理（见 [07]，不计入环境分）%s\n' "$DIM" "$R" "$YEL" "$ADVICE_N" "$R"
+    printf '  %s终端协同%s    %s! %s 项需关注（见 [07]，未计入此基础分）%s\n' "$DIM" "$R" "$YEL" "$ADVICE_N" "$R"
   else
-    printf '  %s终端检查%s    %s✓ 未见终端侧问题%s\n' "$DIM" "$R" "$GRN" "$R"
+    printf '  %s终端协同%s    %s✓ 未见终端侧问题%s\n' "$DIM" "$R" "$GRN" "$R"
   fi
 }
 
@@ -1045,17 +1114,19 @@ SCORE_O=$(json_scope "$SCORE_JSON" score)
 SCORE=$(json_num "$SCORE_O" environmentScore)
 SCORE_LABEL=$(json_str "$SCORE_O" levelLabel)
 
-printf '\n  %s%s 环境质量分%s\n\n' "$TITLE" "$SCORE_SECTION" "$R"
+printf '\n  %s%s 出口 IP 基础分%s\n\n' "$TITLE" "$SCORE_SECTION" "$R"
 
 if [ -n "$SCORE" ]; then
   if [ "$SCORE" -ge 85 ]; then SC="$GRN"
   elif [ "$SCORE" -ge 50 ]; then SC="$YEL"
   else SC="$RED"; fi
 
-  printf '  %s环境质量分%s  %s%s%s %s/ 100%s   %s%s%s\n' \
+  printf '  %s出口 IP 基础分%s  %s%s%s %s/ 100%s   %s%s%s\n' \
     "$B" "$R" "$SC$B" "$SCORE" "$R" "$DIM" "$R" "$SC" "$SCORE_LABEL" "$R"
   [ -n "$SCORE_IP" ] && printf '  %s计分对象%s    %s\n' "$DIM" "$R" "$SCORE_IP"
   print_terminal_check
+  [ -z "$TARGET_IP" ] && printf '  %s口径说明%s    %s仅评出口 IP 质素（身份/地区一致性/信誉）；含中转与浏览器协同的综合环境分见 %s%s\n' \
+    "$DIM" "$R" "$DIM" "$WEB_BASE" "$R"
 
   DEDUCTIONS=$(json_list "$SCORE_O" deductions)
   if [ -n "$DEDUCTIONS" ]; then
@@ -1065,7 +1136,7 @@ if [ -n "$SCORE" ]; then
     done
   fi
 else
-  printf '  %s环境质量分暂时无法计算，请稍后重试。%s\n' "$YEL" "$R"
+  printf '  %s出口 IP 基础分暂时无法计算，请稍后重试。%s\n' "$YEL" "$R"
 fi
 
 if [ -z "$TARGET_IP" ]; then
@@ -1085,3 +1156,157 @@ if [ -n "$CHECK_STARTED_EPOCH" ] && [ -n "$CHECK_FINISHED_EPOCH" ]; then
   printf '\n  %s本次耗时%s  %s 秒  %s（加 -d 查看扩展 AI 工具与 HTTP 状态）%s\n' "$DIM" "$R" "$CHECK_ELAPSED" "$DIM" "$R"
 fi
 printf '\n'
+
+if [ "$OUT_MODE" != full ]; then
+  exec 1>&3 3>&-
+
+  OUT_FINISHED_EPOCH=$(date +%s 2>/dev/null || echo '')
+  OUT_ELAPSED=''
+  if [ -n "$CHECK_STARTED_EPOCH" ] && [ -n "$OUT_FINISHED_EPOCH" ]; then
+    OUT_ELAPSED=$(( OUT_FINISHED_EPOCH - CHECK_STARTED_EPOCH ))
+  fi
+
+  if [ "$OUT_MODE" = summary ]; then
+    printf '\n  %sipforai 终端守门员%s %s%s · 摘要 · %s%s\n' \
+      "$TITLE" "$R" "$DIM" "$SCRIPT_VERSION" "$CHECK_STARTED_AT" "$R"
+    [ -n "$IP4" ] && print_card IPv4 "$IP4"
+    [ -n "$IP6" ] && print_card IPv6 "$IP6"
+
+    if [ -z "$TARGET_IP" ]; then
+      printf '\n  %sAI 可达%s   ' "$DIM" "$R"
+      core_ai_lines | {
+        sum_first=1
+        while IFS='|' read -r c_id c_name _w _ah _au _ex; do
+          api_st='fail'; api_ms=''
+          [ -f "$TMP/core_api_$c_id" ] && IFS='|' read -r api_st _ac api_ms _ar _ab < "$TMP/core_api_$c_id"
+          official_of "$c_id"
+          case "$api_st" in
+            ok)     s_mark="${GRN}✓${R}" ;;
+            review) s_mark="${YEL}!${R}" ;;
+            *)      s_mark="${RED}×${R}" ;;
+          esac
+          s_item="$s_mark $c_name"
+          [ -n "$api_ms" ] && s_item="$s_item $api_ms"
+          if [ "$OFF_STATE" = "blocked" ] || [ "$OFF_STATE" = "partial" ]; then
+            s_item="$s_item（$OFF_NOTE）"
+          fi
+          if [ "$sum_first" -eq 1 ]; then
+            printf '%s' "$s_item"
+            sum_first=0
+          else
+            printf ' · %s' "$s_item"
+          fi
+        done
+        printf '\n'
+      }
+    else
+      printf '\n'
+    fi
+
+    if [ -n "${SCORE:-}" ]; then
+      if [ "$SCORE" -ge 85 ]; then SC="$GRN"
+      elif [ "$SCORE" -ge 50 ]; then SC="$YEL"
+      else SC="$RED"; fi
+      printf '  %s基础分%s    %s%s%s %s/ 100%s  %s%s%s\n' \
+        "$DIM" "$R" "$SC$B" "$SCORE" "$R" "$DIM" "$R" "$SC" "$SCORE_LABEL" "$R"
+    else
+      printf '  %s基础分%s    %s暂时无法计算%s\n' "$DIM" "$R" "$YEL" "$R"
+    fi
+
+    if [ -z "$TARGET_IP" ]; then
+      if [ "$ADVICE_N" -gt 0 ]; then
+        printf '  %s待处理%s    %s%s 项%s\n' "$DIM" "$R" "$YEL" "$ADVICE_N" "$R"
+        adv_i=0
+        while IFS= read -r adv; do
+          adv_i=$(( adv_i + 1 ))
+          [ "$adv_i" -le 5 ] && printf '            %s!%s %s\n' "$YEL" "$R" "$adv"
+        done < "$TMP/advice"
+        [ "$ADVICE_N" -gt 5 ] && printf '            %s另有 %s 项%s\n' "$DIM" "$(( ADVICE_N - 5 ))" "$R"
+      else
+        printf '  %s待处理%s    %s✓ 无需处理%s\n' "$DIM" "$R" "$GRN" "$R"
+      fi
+    fi
+
+    printf '  %s完整明细：去掉 -s 重跑，或打开 %s%s\n\n' "$DIM" "$WEB_BASE" "$R"
+  elif [ "$OUT_MODE" = json ]; then
+    j_geo=$(json_scope "$SCORE_JSON" geo)
+    j_country=$(json_str "$j_geo" countryNameZh)
+    [ -z "$j_country" ] && j_country=$(json_str "$j_geo" countryName)
+    j_region=$(json_str "$j_geo" regionNameZh)
+    [ -z "$j_region" ] && j_region=$(json_str "$j_geo" region)
+    j_asn_o=$(json_scope "$SCORE_JSON" asn)
+    j_asn=$(json_num "$j_asn_o" asn)
+    j_asname=$(json_str "$j_asn_o" asName)
+    j_iptype=$(json_str "$(json_scope "$SCORE_JSON" networkProfile)" ipTypeLabel)
+    j_risk_o=$(json_scope "$SCORE_JSON" riskProfile)
+    j_risk=$(json_str "$j_risk_o" riskLevelLabel)
+    [ -z "$j_risk" ] && j_risk=$(json_str "$j_risk_o" proxyTypeLabel)
+
+    j_ai='[]'
+    if [ -z "$TARGET_IP" ]; then
+      j_ai_items=$(core_ai_lines | {
+        first_ai=1
+        while IFS='|' read -r c_id c_name c_web _ah _au _ex; do
+          api_st='fail'; api_code=''; api_ms=''; w_ip=''; a_ip=''
+          [ -f "$TMP/core_api_$c_id" ] && IFS='|' read -r api_st api_code api_ms _ar _ab < "$TMP/core_api_$c_id"
+          [ -f "$TMP/core_web_$c_id" ] && IFS='|' read -r _wc w_ip _wcol _wms _wr < "$TMP/core_web_$c_id"
+          [ -f "$TMP/core_api_tr_$c_id" ] && IFS='|' read -r _ac a_ip _acol _ams _ar2 < "$TMP/core_api_tr_$c_id"
+          official_of "$c_id"
+          lat_num="${api_ms%ms}"
+          [ "$first_ai" -eq 1 ] && first_ai=0 || printf ','
+          printf '{"id":%s,"name":%s,"api":%s,"httpCode":%s,"latencyMs":%s,"webIp":%s,"apiIp":%s,"official":%s}' \
+            "$(jstr "$c_id")" "$(jstr "$c_name")" "$(jstr "$api_st")" "$(jstr "$api_code")" \
+            "$(jnum "$lat_num")" "$(jstr "$w_ip")" "$(jstr "$a_ip")" "$(jstr "$OFF_STATE")"
+        done
+      })
+      j_ai="[$j_ai_items]"
+    fi
+
+    j_v6leak='null'
+    if [ -z "$TARGET_IP" ]; then
+      v6l_ip=''; v6l_loc=''
+      IFS='|' read -r v6l_ip v6l_loc < "$TMP/v6_leak" 2>/dev/null
+      case "$v6l_ip" in *:*) ;; *) v6l_ip='' ;; esac
+      if [ -n "$v6l_ip" ]; then
+        j_v6leak=$(printf '{"ip":%s,"country":%s}' "$(jstr "$v6l_ip")" "$(jstr "$v6l_loc")")
+      fi
+    fi
+
+    j_deds='[]'
+    j_ded_raw=$(json_list "$SCORE_O" deductions)
+    if [ -n "$j_ded_raw" ]; then
+      j_ded_items=$(printf '%s\n' "$j_ded_raw" | {
+        first_d=1
+        while IFS= read -r reason; do
+          [ -n "$reason" ] || continue
+          [ "$first_d" -eq 1 ] && first_d=0 || printf ','
+          jstr "$reason"
+        done
+      })
+      j_deds="[$j_ded_items]"
+    fi
+
+    j_adv='[]'
+    if [ -z "$TARGET_IP" ] && [ -s "$TMP/advice" ]; then
+      j_adv_items=$({
+        first_a=1
+        while IFS= read -r adv; do
+          [ -n "$adv" ] || continue
+          [ "$first_a" -eq 1 ] && first_a=0 || printf ','
+          jstr "$adv"
+        done < "$TMP/advice"
+      })
+      j_adv="[$j_adv_items]"
+    fi
+
+    printf '{"tool":"ipforai-check","version":%s,"startedAt":%s,"elapsedSec":%s,"target":%s,"exits":{"ipv4":%s,"ipv6":%s,"aiExit":%s,"domestic":%s},"profile":{"ip":%s,"country":%s,"region":%s,"asn":%s,"asName":%s,"ipType":%s,"risk":%s},"ai":%s,"ipv6Leak":%s,"score":{"value":%s,"label":%s,"deductions":%s},"advice":%s,"report":%s}\n' \
+      "$(jstr "$SCRIPT_VERSION")" "$(jstr "$CHECK_STARTED_AT")" "$(jnum "$OUT_ELAPSED")" \
+      "$(jstr "${TARGET_IP:-}")" \
+      "$(jstr "${IP4:-}")" "$(jstr "${IP6:-}")" "$(jstr "${AI_EXIT:-}")" "$(jstr "${DOMESTIC_IP:-}")" \
+      "$(jstr "${SCORE_IP:-}")" "$(jstr "$j_country")" "$(jstr "$j_region")" "$(jnum "$j_asn")" \
+      "$(jstr "$j_asname")" "$(jstr "$j_iptype")" "$(jstr "$j_risk")" \
+      "$j_ai" "$j_v6leak" \
+      "$(jnum "${SCORE:-}")" "$(jstr "${SCORE_LABEL:-}")" "$j_deds" \
+      "$j_adv" "$(jstr "$WEB_BASE")"
+  fi
+fi
