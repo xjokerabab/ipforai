@@ -1,6 +1,6 @@
 # IP for AI — Is It My Network, or Is It AI?
 
-[中文](./README.md) · [Open Site](https://ipforai.cc) · [AI Weather](https://ipforai.cc/weather) · [Routing Checker](https://ipforai.cc/rules) · [ASN Database](https://ipforai.cc/datacenters) · [CLI](https://ipforai.cc/cli)
+[中文](./README.md) · [Open Site](https://ipforai.cc) · [IP Purity](https://ipforai.cc/ip) · [AI Weather](https://ipforai.cc/weather) · [Regions](https://ipforai.cc/regions) · [Routing Checker](https://ipforai.cc/rules) · [ASN Database](https://ipforai.cc/datacenters) · [CLI](https://ipforai.cc/cli)
 
 Instantly see the exit IP, region, official status, and low-level leaks (WebRTC, DNS/ECS, TCP SYN/MSS, passive JA4, HTTP/3 QUIC) observed by **Claude, ChatGPT, Gemini, and Grok** — with every issue labeled as fixable locally, fixable via routing rules, or requiring a different node.
 
@@ -13,10 +13,13 @@ Instantly see the exit IP, region, official status, and low-level leaks (WebRTC,
 ## Pages & Tools
 
 - **Dashboard**: [ipforai.cc](https://ipforai.cc) — Side-by-side exits, scores, and interactive fix simulation
+- **IP Purity Check**: [ipforai.cc/ip](https://ipforai.cc/ip) — 0–100 purity score (A+ to F), dual-ISP vs. leased hosting subnet breakdown (IRR + on-demand RDAP), IP2Proxy, Spamhaus, public threat feeds, and 10 DNSBL zones
+- **Leak Diagnostics**: [WebRTC Leak](https://ipforai.cc/webrtc-leak) · [DNS Leak](https://ipforai.cc/dns-leak) — Concurrent STUN candidates and recursive DNS / ECS subnet checks
 - **Per-Service Checks**: [Claude](https://ipforai.cc/claude-check) · [ChatGPT](https://ipforai.cc/chatgpt-check) · [Gemini](https://ipforai.cc/gemini-check) · [Grok](https://ipforai.cc/grok-check)
 - **AI Weather**: [ipforai.cc/weather](https://ipforai.cc/weather) — Live official status, 60-day incident history, and 7-region API reachability
-- **Routing Checker**: [ipforai.cc/rules](https://ipforai.cc/rules) — Client-side Clash / Surge rule check for 11 critical AI domains
-- **ASN & Datacenter DB**: [ipforai.cc/datacenters](https://ipforai.cc/datacenters) — 120k+ global ASNs with PeeringDB metadata
+- **AI Supported Regions**: [ipforai.cc/regions](https://ipforai.cc/regions) — Official Web / App / API eligibility across 10 major node regions
+- **Routing Checker & Rulesets**: [ipforai.cc/rules](https://ipforai.cc/rules) — Hosted Clash / Mihomo, Surge, Sing-box, and Quantumult X rulesets plus client-side checks for 30 core, auth, telemetry, and Cursor domains
+- **ASN & Datacenter DB**: [ipforai.cc/datacenters](https://ipforai.cc/datacenters) — 120k+ global ASNs with PeeringDB metadata and per-ASN deep pages (`/asn/as<num>`) with IRR leased-hosting breakdowns
 
 ---
 
@@ -37,11 +40,23 @@ curl -fsSL https://ipforai.cc/sh | sh -s -- 8.8.8.8
 
 # Non-interactive + detailed diagnostics
 curl -fsSL https://ipforai.cc/sh | sh -s -- -y -d
+
+# One-screen summary (exits, AI reachability, base score)
+curl -fsSL https://ipforai.cc/sh | sh -s -- -s
+
+# Output forum-ready Markdown table (with 7-day masked share link)
+curl -fsSL https://ipforai.cc/sh | sh -s -- -m
+
+# Disable masked online share link creation
+curl -fsSL https://ipforai.cc/sh | sh -s -- --no-share
+
+# Output JSON to stdout (implies -y, for scripting)
+curl -fsSL https://ipforai.cc/sh | sh -s -- -j
 ```
 
 ![ipforai Terminal Output](./docs/images/terminal-report.png)
 
-> Canonical URL: `https://ipforai.cc/sh`. [`check.sh`](./check.sh) is a review mirror (`v3.3`).
+> Canonical URL: `https://ipforai.cc/sh`. [`check.sh`](./check.sh) is a review mirror (`v3.7`).
 
 ---
 

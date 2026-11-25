@@ -39,7 +39,7 @@ if [ -n "${IPFORAI_API:-}" ] && [ -z "${IPFORAI_WEB:-}" ]; then
   esac
 fi
 NET_TIMEOUT=8
-SCRIPT_VERSION="v3.5"
+SCRIPT_VERSION="v3.7"
 CHECK_STARTED_AT=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo '未知')
 CHECK_STARTED_EPOCH=$(date +%s 2>/dev/null || echo '')
 LOCAL_ZONE=$(date +%Z 2>/dev/null || echo '未知')
@@ -49,6 +49,8 @@ LOCAL_UTC_OFFSET=$(date +%z 2>/dev/null || echo '')
 
 ASSUME_YES=0
 DETAIL=0
+PRINT_MD=0
+SHARE_MODE=auto
 OUT_MODE=full
 TARGET_IP=""
 TEST_IP="${IPFORAI_TEST_IP:-}"
@@ -57,23 +59,30 @@ for arg in "$@"; do
   case "$arg" in
     -y|--yes) ASSUME_YES=1 ;;
     -d|--detail) DETAIL=1 ;;
+    -m|--markdown) PRINT_MD=1 ;;
+    -r|--share) SHARE_MODE=yes ;;
+    --no-share) SHARE_MODE=no ;;
     -s|--summary) [ "$OUT_MODE" != json ] && OUT_MODE=summary ;;
     -j|--json) OUT_MODE=json; ASSUME_YES=1 ;;
     -h|--help)
       printf 'ipforai 终端守门员  %s\n' "$SCRIPT_VERSION"
       printf '官方入口：https://ipforai.cc/sh\n\n'
       printf '用法：\n'
-      printf '  curl -fsSL https://ipforai.cc/sh | sh -s -- [IP] [-y] [-d] [-s] [-j]\n'
-      printf '  sh /tmp/ipforai-check.sh [IP] [-y] [-d] [-s] [-j]   # 先下载审阅后再执行\n\n'
+      printf '  curl -fsSL https://ipforai.cc/sh | sh -s -- [IP] [-y] [-d] [-s] [-m] [-j] [-r|--no-share]\n'
+      printf '  sh /tmp/ipforai-check.sh [IP] [-y] [-d] [-s] [-m] [-j]   # 先下载审阅后再执行\n\n'
       printf '参数：\n'
-      printf '  IP    仅查询该 IP 的画像与出口 IP 基础分（不含本机链路 / 分流 / 遥测）\n'
-      printf '  -y    跳过确认直接执行\n'
-      printf '  -d    展开扩展 AI 工具分流表与 HTTP 状态详情\n'
-      printf '  -s    一屏摘要（出口、四家 AI 可达性、基础分、待处理项）\n'
-      printf '  -j    输出 JSON 到 stdout（隐含 -y，无颜色，供脚本集成）\n\n'
+      printf '  IP          仅查询该 IP 的画像与出口 IP 基础分（不含本机链路 / 分流 / 遥测）\n'
+      printf '  -y          跳过确认直接执行\n'
+      printf '  -d          展开扩展 AI 工具分流表与 HTTP 状态详情\n'
+      printf '  -s          一屏摘要（出口、四家 AI 可达性、基础分、待处理项）\n'
+      printf '  -m          额外输出可贴进论坛的 Markdown 体检表\n'
+      printf '  -r          生成在线脱敏分享短链（默认非 JSON 模式自动生成）\n'
+      printf '  --no-share  本次运行不生成在线分享短链\n'
+      printf '  -j          输出 JSON 到 stdout（隐含 -y，无颜色，供脚本集成）\n\n'
       printf '环境变量：\n'
-      printf '  IPFORAI_TEST_IP  本地 API 只返回回环地址时使用的测试出口\n\n'
-      printf '说明：只读检测；分段流式输出；结果不代表账号结论。\n'
+      printf '  IPFORAI_TEST_IP   本地 API 只返回回环地址时使用的测试出口\n'
+      printf '  IPFORAI_NO_SHARE  设为 1 时关闭在线短链生成\n\n'
+      printf '说明：只读检测；分段流式输出；在线短链仅上传已打码 IP 摘要；结果不代表账号结论。\n'
       exit 0
       ;;
     -*) printf '未知选项：%s\n' "$arg" >&2; exit 2 ;;
@@ -96,7 +105,7 @@ fi
 
 json_scope() { printf '%s' "$1" | sed -n "s/.*\"$2\":{\([^}]*\)}.*/\1/p"; }
 json_str() { printf '%s' "$1" | sed -n "s/.*\"$2\":\"\([^\"]*\)\".*/\1/p"; }
-json_num() { printf '%s' "$1" | sed -n "s/.*\"$2\":\(-\{0,1\}[0-9][0-9]*\(\.[0-9]*\)\{0,1\}\).*/\1/p"; }
+json_num() { printf '%s' "$1" | sed -n "s/.*\"$2\":[[:space:]]*\(-\{0,1\}[0-9][0-9]*\(\.[0-9]*\)\{0,1\}\).*/\1/p"; }
 
 json_list() {
   printf '%s' "$1" | sed -n "s/.*\"$2\":\[\([^]]*\)\].*/\1/p" \
@@ -136,6 +145,17 @@ jnum() {
     *[!0-9]*) printf 'null' ;;
     *) printf '%s' "$1" ;;
   esac
+}
+
+fmt_int() {
+  printf '%s' "$1" | awk '{
+    s = $0; out = "";
+    while (length(s) > 3) {
+      out = "," substr(s, length(s) - 2) out;
+      s = substr(s, 1, length(s) - 3);
+    }
+    printf "%s%s", s, out;
+  }'
 }
 
 fail_exit() {
@@ -179,6 +199,37 @@ valid_ip() {
   esac
 }
 
+mask_ip_sh() {
+  case "$1" in
+    '') printf '' ;;
+    *•••*) printf '%s' "$1" ;;
+    *.*.*.*) printf '%s.•••.•••.%s' "${1%%.*}" "${1##*.}" ;;
+    *:*:*)
+      printf '%s' "$1" | awk '
+        {
+          s = $0;
+          if (index(s, "::") > 0) {
+            split(s, parts, "::");
+            n1 = parts[1] ? split(parts[1], h, ":") : 0;
+            n2 = parts[2] ? split(parts[2], t, ":") : 0;
+            miss = 8 - n1 - n2;
+            idx = 0;
+            for (i = 1; i <= n1; i++) g[++idx] = h[i];
+            for (i = 1; i <= miss; i++) g[++idx] = "0";
+            for (i = 1; i <= n2; i++) g[++idx] = t[i];
+          } else {
+            split(s, g, ":");
+          }
+          g1 = g[1]; gsub(/^0+/, "", g1); if (g1 == "") g1 = "0";
+          g2 = g[2]; gsub(/^0+/, "", g2); if (g2 == "") g2 = "0";
+          printf "%s:%s:••••", tolower(g1), tolower(g2);
+        }
+      '
+      ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
 # UTF-8 显示宽度补白
 PAD=''
 set_pad() {
@@ -211,6 +262,14 @@ risk_tone() {
     clean|low) printf '%s' "$GRN" ;;
     medium) printf '%s' "$YEL" ;;
     high) printf '%s' "$RED" ;;
+    *) printf '%s' "$DIM" ;;
+  esac
+}
+
+ownership_tone() {
+  case "$1" in
+    dual_isp) printf '%s' "$GRN" ;;
+    single_isp_hosting|hosting) printf '%s' "$YEL" ;;
     *) printf '%s' "$DIM" ;;
   esac
 }
@@ -410,9 +469,10 @@ if [ -n "$TARGET_IP" ]; then
   esac
 fi
 
-p_pv4=''; p_pv6=''
+p_pv4=''; p_pv6=''; p_stat=''
 if [ -n "$IP4" ]; then ( fetch "$API_BASE/api/ip-profile?ip=$IP4" > "$TMP/p_v4" 2>/dev/null ) & p_pv4=$!; fi
 if [ -n "$IP6" ]; then ( fetch "$API_BASE/api/ip-profile?ip=$IP6" > "$TMP/p_v6" 2>/dev/null ) & p_pv6=$!; fi
+( curl -fsS -m 3 -X POST "$API_BASE/api/page-views/sh" > "$TMP/sh_stats" 2>/dev/null || true ) & p_stat=$!
 spin_wait "正在查询出口画像" "$p_pv4" "$p_pv6"
 
 if [ ! -s "$TMP/p_v4" ] && [ ! -s "$TMP/p_v6" ]; then
@@ -467,6 +527,11 @@ print_card() {
   card_access=$(json_str "$(json_scope "$card_json" accessProfile)" accessTypeLabel)
   card_route=$(json_str "$(json_scope "$card_json" routingProfile)" routeTypeLabel)
   card_route_key=$(json_str "$(json_scope "$card_json" routingProfile)" routeType)
+  card_dual_key=$(json_str "$card_json" dualIspStatus)
+  card_dual=$(json_str "$card_json" dualIspLabel)
+  card_subnet_o=$(json_scope "$card_json" subnetEntity)
+  card_subnet_name=$(json_str "$card_subnet_o" name)
+  card_subnet_prefix=$(json_str "$card_subnet_o" prefix)
   card_risk_o=$(json_scope "$card_json" riskProfile)
   card_risk=$(json_str "$card_risk_o" riskLevelLabel)
   card_risk_key=$(json_str "$card_risk_o" riskLevel)
@@ -492,6 +557,16 @@ print_card() {
       "$(network_tone "$card_type_key" "$card_access_key")" "$card_type" "$R" \
       "$(route_tone "$card_route_key")" "$card_route" "$R" \
       "$(risk_tone "$card_risk_key")" "${card_risk:-未知}" "$R"
+  fi
+  if [ -n "$card_dual" ]; then
+    if [ "$card_dual_key" = "single_isp_hosting" ] && [ -n "$card_subnet_name" ]; then
+      printf '        归属：%s%s%s（%s%s）\n' \
+        "$(ownership_tone "$card_dual_key")" "$card_dual" "$R" \
+        "$card_subnet_name" "${card_subnet_prefix:+ · $card_subnet_prefix}"
+    else
+      printf '        归属：%s%s%s\n' \
+        "$(ownership_tone "$card_dual_key")" "$card_dual" "$R"
+    fi
   fi
 }
 
@@ -1113,6 +1188,8 @@ print_terminal_check() {
 SCORE_O=$(json_scope "$SCORE_JSON" score)
 SCORE=$(json_num "$SCORE_O" environmentScore)
 SCORE_LABEL=$(json_str "$SCORE_O" levelLabel)
+PURITY_URL=''
+[ -n "${SCORE_IP:-}" ] && PURITY_URL="$WEB_BASE/ip/$SCORE_IP"
 
 printf '\n  %s%s 出口 IP 基础分%s\n\n' "$TITLE" "$SCORE_SECTION" "$R"
 
@@ -1127,6 +1204,8 @@ if [ -n "$SCORE" ]; then
   print_terminal_check
   [ -z "$TARGET_IP" ] && printf '  %s口径说明%s    %s仅评出口 IP 质素（身份/地区一致性/信誉）；含中转与浏览器协同的综合环境分见 %s%s\n' \
     "$DIM" "$R" "$DIM" "$WEB_BASE" "$R"
+  [ -n "$PURITY_URL" ] && printf '  %s深度档案%s    %s%s（0–100 纯净度、双层归属穿透与 10 家 DNSBL 明细）%s\n' \
+    "$DIM" "$R" "$PURITY_URL" "$DIM" "$R"
 
   DEDUCTIONS=$(json_list "$SCORE_O" deductions)
   if [ -n "$DEDUCTIONS" ]; then
@@ -1150,18 +1229,219 @@ if [ -z "$TARGET_IP" ]; then
   fi
 fi
 
+[ -n "${p_stat:-}" ] && wait "$p_stat" 2>/dev/null || true
+SH_STATS_JSON=$(cat "$TMP/sh_stats" 2>/dev/null || echo '')
+SH_TOTAL=$(json_num "$SH_STATS_JSON" total)
+SH_TODAY=$(json_num "$SH_STATS_JSON" today)
+case "$SH_TOTAL" in ''|*[!0-9]*) SH_TOTAL='' ;; esac
+case "$SH_TODAY" in ''|*[!0-9]*) SH_TODAY='' ;; esac
+
+# ---------- 汇总 JSON 构造、脱敏短链与论坛 Markdown ----------
+
+build_cli_report_json() {
+  bcr_mask="$1"
+  bcr_elapsed="$2"
+  bcr_share_url="${3:-}"
+
+  bcr_target="${TARGET_IP:-}"
+  bcr_ip4="${IP4:-}"
+  bcr_ip6="${IP6:-}"
+  bcr_ai_exit="${AI_EXIT:-}"
+  bcr_dom="${DOMESTIC_IP:-}"
+  bcr_score_ip="${SCORE_IP:-}"
+  bcr_purity_url="${PURITY_URL:-}"
+  if [ "$bcr_mask" -eq 1 ]; then
+    bcr_target=$(mask_ip_sh "$bcr_target")
+    bcr_ip4=$(mask_ip_sh "$bcr_ip4")
+    bcr_ip6=$(mask_ip_sh "$bcr_ip6")
+    bcr_ai_exit=$(mask_ip_sh "$bcr_ai_exit")
+    bcr_dom=$(mask_ip_sh "$bcr_dom")
+    bcr_score_ip=$(mask_ip_sh "$bcr_score_ip")
+    bcr_purity_url="$WEB_BASE/ip"
+  fi
+
+  j_geo=$(json_scope "$SCORE_JSON" geo)
+  j_country=$(json_str "$j_geo" countryNameZh)
+  [ -z "$j_country" ] && j_country=$(json_str "$j_geo" countryName)
+  j_region=$(json_str "$j_geo" regionNameZh)
+  [ -z "$j_region" ] && j_region=$(json_str "$j_geo" region)
+  j_asn_o=$(json_scope "$SCORE_JSON" asn)
+  j_asn=$(json_num "$j_asn_o" asn)
+  j_asname=$(json_str "$j_asn_o" asName)
+  j_iptype=$(json_str "$(json_scope "$SCORE_JSON" networkProfile)" ipTypeLabel)
+  j_dual=$(json_str "$SCORE_JSON" dualIspLabel)
+  j_risk_o=$(json_scope "$SCORE_JSON" riskProfile)
+  j_risk=$(json_str "$j_risk_o" riskLevelLabel)
+  [ -z "$j_risk" ] && j_risk=$(json_str "$j_risk_o" proxyTypeLabel)
+
+  j_ai='[]'
+  if [ -z "$TARGET_IP" ]; then
+    j_ai_items=$(core_ai_lines | {
+      first_ai=1
+      while IFS='|' read -r c_id c_name c_web _ah _au _ex; do
+        api_st='fail'; api_code=''; api_ms=''; w_ip=''; a_ip=''
+        [ -f "$TMP/core_api_$c_id" ] && IFS='|' read -r api_st api_code api_ms _ar _ab < "$TMP/core_api_$c_id"
+        [ -f "$TMP/core_web_$c_id" ] && IFS='|' read -r _wc w_ip _wcol _wms _wr < "$TMP/core_web_$c_id"
+        [ -f "$TMP/core_api_tr_$c_id" ] && IFS='|' read -r _ac a_ip _acol _ams _ar2 < "$TMP/core_api_tr_$c_id"
+        if [ "$bcr_mask" -eq 1 ]; then
+          w_ip=$(mask_ip_sh "$w_ip")
+          a_ip=$(mask_ip_sh "$a_ip")
+        fi
+        official_of "$c_id"
+        lat_num="${api_ms%ms}"
+        [ "$first_ai" -eq 1 ] && first_ai=0 || printf ','
+        printf '{"id":%s,"name":%s,"api":%s,"httpCode":%s,"latencyMs":%s,"webIp":%s,"apiIp":%s,"official":%s}' \
+          "$(jstr "$c_id")" "$(jstr "$c_name")" "$(jstr "$api_st")" "$(jstr "$api_code")" \
+          "$(jnum "$lat_num")" "$(jstr "$w_ip")" "$(jstr "$a_ip")" "$(jstr "$OFF_STATE")"
+      done
+    })
+    j_ai="[$j_ai_items]"
+  fi
+
+  j_v6leak='null'
+  if [ -z "$TARGET_IP" ]; then
+    v6l_ip=''; v6l_loc=''
+    IFS='|' read -r v6l_ip v6l_loc < "$TMP/v6_leak" 2>/dev/null
+    case "$v6l_ip" in *:*) ;; *) v6l_ip='' ;; esac
+    if [ -n "$v6l_ip" ]; then
+      [ "$bcr_mask" -eq 1 ] && v6l_ip=$(mask_ip_sh "$v6l_ip")
+      j_v6leak=$(printf '{"ip":%s,"country":%s}' "$(jstr "$v6l_ip")" "$(jstr "$v6l_loc")")
+    fi
+  fi
+
+  j_deds='[]'
+  j_ded_raw=$(json_list "$SCORE_O" deductions)
+  if [ -n "$j_ded_raw" ]; then
+    j_ded_items=$(printf '%s\n' "$j_ded_raw" | {
+      first_d=1
+      while IFS= read -r reason; do
+        [ -n "$reason" ] || continue
+        [ "$first_d" -eq 1 ] && first_d=0 || printf ','
+        jstr "$reason"
+      done
+    })
+    j_deds="[$j_ded_items]"
+  fi
+
+  j_adv='[]'
+  if [ -z "$TARGET_IP" ] && [ -s "$TMP/advice" ]; then
+    j_adv_items=$({
+      first_a=1
+      while IFS= read -r adv; do
+        [ -n "$adv" ] || continue
+        [ "$first_a" -eq 1 ] && first_a=0 || printf ','
+        jstr "$adv"
+      done < "$TMP/advice"
+    })
+    j_adv="[$j_adv_items]"
+  fi
+
+  j_stats='null'
+  if [ -n "$SH_TOTAL" ] && [ -n "$SH_TODAY" ]; then
+    j_stats=$(printf '{"total":%s,"today":%s}' "$(jnum "$SH_TOTAL")" "$(jnum "$SH_TODAY")")
+  fi
+
+  printf '{"tool":"ipforai-check","version":%s,"startedAt":%s,"elapsedSec":%s,"target":%s,"exits":{"ipv4":%s,"ipv6":%s,"aiExit":%s,"domestic":%s},"profile":{"ip":%s,"country":%s,"region":%s,"asn":%s,"asName":%s,"ipType":%s,"dualIsp":%s,"risk":%s},"ai":%s,"ipv6Leak":%s,"score":{"value":%s,"label":%s,"deductions":%s},"advice":%s,"report":%s,"purityReport":%s,"shareUrl":%s,"stats":%s}\n' \
+    "$(jstr "$SCRIPT_VERSION")" "$(jstr "$CHECK_STARTED_AT")" "$(jnum "$bcr_elapsed")" \
+    "$(jstr "$bcr_target")" \
+    "$(jstr "$bcr_ip4")" "$(jstr "$bcr_ip6")" "$(jstr "$bcr_ai_exit")" "$(jstr "$bcr_dom")" \
+    "$(jstr "$bcr_score_ip")" "$(jstr "$j_country")" "$(jstr "$j_region")" "$(jnum "$j_asn")" \
+    "$(jstr "$j_asname")" "$(jstr "$j_iptype")" "$(jstr "$j_dual")" "$(jstr "$j_risk")" \
+    "$j_ai" "$j_v6leak" \
+    "$(jnum "${SCORE:-}")" "$(jstr "${SCORE_LABEL:-}")" "$j_deds" \
+    "$j_adv" "$(jstr "$WEB_BASE")" "$(jstr "$bcr_purity_url")" "$(jstr "$bcr_share_url")" "$j_stats"
+}
+
+SHARE_URL=''
+maybe_upload_share_report() {
+  mus_elapsed="$1"
+  DO_SHARE=0
+  if [ "$SHARE_MODE" = "yes" ]; then
+    DO_SHARE=1
+  elif [ "$SHARE_MODE" = "auto" ] && [ "$OUT_MODE" != "json" ]; then
+    DO_SHARE=1
+  fi
+  [ "${IPFORAI_NO_SHARE:-}" = "1" ] && DO_SHARE=0
+  [ "$DO_SHARE" -eq 1 ] || return 0
+
+  mus_payload=$(build_cli_report_json 1 "$mus_elapsed" '')
+  mus_resp=$(curl -fsS -m 3 -H 'Content-Type: application/json' -d "$mus_payload" "$API_BASE/api/cli-reports" 2>/dev/null || echo '')
+  mus_id=$(json_str "$mus_resp" id)
+  if [ -n "$mus_id" ]; then
+    SHARE_URL="$WEB_BASE/r/$mus_id"
+  fi
+}
+
+format_md_ai_summary() {
+  core_ai_lines | {
+    first_m=1
+    while IFS='|' read -r c_id c_name _w _ah _au _ex; do
+      api_st='fail'; api_ms=''
+      [ -f "$TMP/core_api_$c_id" ] && IFS='|' read -r api_st _ac api_ms _ar _ab < "$TMP/core_api_$c_id"
+      case "$api_st" in
+        ok) m_txt="$c_name ✓${api_ms:+ $api_ms}" ;;
+        review) m_txt="$c_name !" ;;
+        *) m_txt="$c_name ×" ;;
+      esac
+      [ "$first_m" -eq 1 ] && first_m=0 || printf ' / '
+      printf '%s' "$m_txt"
+    done
+  }
+}
+
+print_forum_markdown() {
+  pfm_share="$1"
+  pfm_geo=$(json_scope "$SCORE_JSON" geo)
+  pfm_country=$(json_str "$pfm_geo" countryNameZh)
+  [ -z "$pfm_country" ] && pfm_country=$(json_str "$pfm_geo" countryName)
+  pfm_asn_o=$(json_scope "$SCORE_JSON" asn)
+  pfm_asn=$(json_num "$pfm_asn_o" asn)
+  pfm_asname=$(json_str "$pfm_asn_o" asName)
+  pfm_iptype=$(json_str "$(json_scope "$SCORE_JSON" networkProfile)" ipTypeLabel)
+  pfm_dual=$(json_str "$SCORE_JSON" dualIspLabel)
+  pfm_ip_masked=$(mask_ip_sh "${SCORE_IP:-}")
+
+  printf '\n  %s─── 论坛 Markdown 体检表（可直接复制） ───%s\n\n' "$DIM" "$R"
+  printf '| 检测项 | 结果 |\n| --- | --- |\n'
+  printf '| 脱敏出口 | `%s` (%s) |\n' "${pfm_ip_masked:-未知}" "${pfm_country:-未知}"
+  [ -n "$pfm_asn" ] && printf '| 归属 ASN | AS%s · %s |\n' "$pfm_asn" "${pfm_asname:-未知}"
+  printf '| 网络属性 | %s%s |\n' "${pfm_iptype:-未知}" "${pfm_dual:+ · $pfm_dual}"
+  [ -n "${SCORE:-}" ] && printf '| 出口基础分 | %s / 100（%s） |\n' "$SCORE" "${SCORE_LABEL:-}"
+  if [ -z "$TARGET_IP" ]; then
+    pfm_ai=$(format_md_ai_summary)
+    printf '| AI 连通 | %s |\n' "$pfm_ai"
+  fi
+  printf '\n> [查看完整脱敏检测报告](%s) · [IP for AI](%s)\n\n' "${pfm_share:-$WEB_BASE}" "$WEB_BASE"
+}
+
 CHECK_FINISHED_EPOCH=$(date +%s 2>/dev/null || echo '')
+CHECK_ELAPSED=''
 if [ -n "$CHECK_STARTED_EPOCH" ] && [ -n "$CHECK_FINISHED_EPOCH" ]; then
   CHECK_ELAPSED=$((CHECK_FINISHED_EPOCH - CHECK_STARTED_EPOCH))
-  printf '\n  %s本次耗时%s  %s 秒  %s（加 -d 查看扩展 AI 工具与 HTTP 状态）%s\n' "$DIM" "$R" "$CHECK_ELAPSED" "$DIM" "$R"
+fi
+
+maybe_upload_share_report "$CHECK_ELAPSED"
+
+if [ -n "$CHECK_ELAPSED" ]; then
+  printf '\n  %s本次耗时%s  %s 秒  %s（加 -d 查看扩展 AI 工具 · -m 输出论坛 Markdown）%s\n' "$DIM" "$R" "$CHECK_ELAPSED" "$DIM" "$R"
+else
+  printf '\n'
+fi
+printf '  %s────────────────────────────────────────────────────────%s\n' "$DIM" "$R"
+[ -n "$SHARE_URL" ] && printf '  %s分享短链%s  %s %s（已脱敏 · 7 天有效）%s\n' "$DIM" "$R" "$SHARE_URL" "$DIM" "$R"
+printf '  %sIP 纯净度%s %s\n' "$DIM" "$R" "${PURITY_URL:-$WEB_BASE/ip}"
+printf '  %s网页体检%s  %s\n' "$DIM" "$R" "$WEB_BASE"
+if [ -n "$SH_TOTAL" ] && [ -n "$SH_TODAY" ]; then
+  printf '  %s终端累计%s  %s 次 · 今日 %s 次\n' "$DIM" "$R" "$(fmt_int "$SH_TOTAL")" "$(fmt_int "$SH_TODAY")"
 fi
 printf '\n'
+[ "$OUT_MODE" = full ] && [ "$PRINT_MD" -eq 1 ] && print_forum_markdown "$SHARE_URL"
 
 if [ "$OUT_MODE" != full ]; then
   exec 1>&3 3>&-
 
   OUT_FINISHED_EPOCH=$(date +%s 2>/dev/null || echo '')
-  OUT_ELAPSED=''
+  OUT_ELAPSED="$CHECK_ELAPSED"
   if [ -n "$CHECK_STARTED_EPOCH" ] && [ -n "$OUT_FINISHED_EPOCH" ]; then
     OUT_ELAPSED=$(( OUT_FINISHED_EPOCH - CHECK_STARTED_EPOCH ))
   fi
@@ -1227,86 +1507,15 @@ if [ "$OUT_MODE" != full ]; then
       fi
     fi
 
-    printf '  %s完整明细：去掉 -s 重跑，或打开 %s%s\n\n' "$DIM" "$WEB_BASE" "$R"
+    [ -n "$SHARE_URL" ] && printf '  %s分享短链：%s（已脱敏 · 7 天有效）%s\n' "$DIM" "$SHARE_URL" "$R"
+    printf '  %sIP 纯净度：%s · 网页体检：%s%s\n' "$DIM" "${PURITY_URL:-$WEB_BASE/ip}" "$WEB_BASE" "$R"
+    if [ -n "$SH_TOTAL" ] && [ -n "$SH_TODAY" ]; then
+      printf '  %s终端累计：%s 次 · 今日 %s 次 · 去掉 -s 查看完整明细%s\n\n' "$DIM" "$(fmt_int "$SH_TOTAL")" "$(fmt_int "$SH_TODAY")" "$R"
+    else
+      printf '  %s完整明细：去掉 -s 重跑%s\n\n' "$DIM" "$R"
+    fi
+    if [ "$PRINT_MD" -eq 1 ]; then print_forum_markdown "$SHARE_URL"; fi
   elif [ "$OUT_MODE" = json ]; then
-    j_geo=$(json_scope "$SCORE_JSON" geo)
-    j_country=$(json_str "$j_geo" countryNameZh)
-    [ -z "$j_country" ] && j_country=$(json_str "$j_geo" countryName)
-    j_region=$(json_str "$j_geo" regionNameZh)
-    [ -z "$j_region" ] && j_region=$(json_str "$j_geo" region)
-    j_asn_o=$(json_scope "$SCORE_JSON" asn)
-    j_asn=$(json_num "$j_asn_o" asn)
-    j_asname=$(json_str "$j_asn_o" asName)
-    j_iptype=$(json_str "$(json_scope "$SCORE_JSON" networkProfile)" ipTypeLabel)
-    j_risk_o=$(json_scope "$SCORE_JSON" riskProfile)
-    j_risk=$(json_str "$j_risk_o" riskLevelLabel)
-    [ -z "$j_risk" ] && j_risk=$(json_str "$j_risk_o" proxyTypeLabel)
-
-    j_ai='[]'
-    if [ -z "$TARGET_IP" ]; then
-      j_ai_items=$(core_ai_lines | {
-        first_ai=1
-        while IFS='|' read -r c_id c_name c_web _ah _au _ex; do
-          api_st='fail'; api_code=''; api_ms=''; w_ip=''; a_ip=''
-          [ -f "$TMP/core_api_$c_id" ] && IFS='|' read -r api_st api_code api_ms _ar _ab < "$TMP/core_api_$c_id"
-          [ -f "$TMP/core_web_$c_id" ] && IFS='|' read -r _wc w_ip _wcol _wms _wr < "$TMP/core_web_$c_id"
-          [ -f "$TMP/core_api_tr_$c_id" ] && IFS='|' read -r _ac a_ip _acol _ams _ar2 < "$TMP/core_api_tr_$c_id"
-          official_of "$c_id"
-          lat_num="${api_ms%ms}"
-          [ "$first_ai" -eq 1 ] && first_ai=0 || printf ','
-          printf '{"id":%s,"name":%s,"api":%s,"httpCode":%s,"latencyMs":%s,"webIp":%s,"apiIp":%s,"official":%s}' \
-            "$(jstr "$c_id")" "$(jstr "$c_name")" "$(jstr "$api_st")" "$(jstr "$api_code")" \
-            "$(jnum "$lat_num")" "$(jstr "$w_ip")" "$(jstr "$a_ip")" "$(jstr "$OFF_STATE")"
-        done
-      })
-      j_ai="[$j_ai_items]"
-    fi
-
-    j_v6leak='null'
-    if [ -z "$TARGET_IP" ]; then
-      v6l_ip=''; v6l_loc=''
-      IFS='|' read -r v6l_ip v6l_loc < "$TMP/v6_leak" 2>/dev/null
-      case "$v6l_ip" in *:*) ;; *) v6l_ip='' ;; esac
-      if [ -n "$v6l_ip" ]; then
-        j_v6leak=$(printf '{"ip":%s,"country":%s}' "$(jstr "$v6l_ip")" "$(jstr "$v6l_loc")")
-      fi
-    fi
-
-    j_deds='[]'
-    j_ded_raw=$(json_list "$SCORE_O" deductions)
-    if [ -n "$j_ded_raw" ]; then
-      j_ded_items=$(printf '%s\n' "$j_ded_raw" | {
-        first_d=1
-        while IFS= read -r reason; do
-          [ -n "$reason" ] || continue
-          [ "$first_d" -eq 1 ] && first_d=0 || printf ','
-          jstr "$reason"
-        done
-      })
-      j_deds="[$j_ded_items]"
-    fi
-
-    j_adv='[]'
-    if [ -z "$TARGET_IP" ] && [ -s "$TMP/advice" ]; then
-      j_adv_items=$({
-        first_a=1
-        while IFS= read -r adv; do
-          [ -n "$adv" ] || continue
-          [ "$first_a" -eq 1 ] && first_a=0 || printf ','
-          jstr "$adv"
-        done < "$TMP/advice"
-      })
-      j_adv="[$j_adv_items]"
-    fi
-
-    printf '{"tool":"ipforai-check","version":%s,"startedAt":%s,"elapsedSec":%s,"target":%s,"exits":{"ipv4":%s,"ipv6":%s,"aiExit":%s,"domestic":%s},"profile":{"ip":%s,"country":%s,"region":%s,"asn":%s,"asName":%s,"ipType":%s,"risk":%s},"ai":%s,"ipv6Leak":%s,"score":{"value":%s,"label":%s,"deductions":%s},"advice":%s,"report":%s}\n' \
-      "$(jstr "$SCRIPT_VERSION")" "$(jstr "$CHECK_STARTED_AT")" "$(jnum "$OUT_ELAPSED")" \
-      "$(jstr "${TARGET_IP:-}")" \
-      "$(jstr "${IP4:-}")" "$(jstr "${IP6:-}")" "$(jstr "${AI_EXIT:-}")" "$(jstr "${DOMESTIC_IP:-}")" \
-      "$(jstr "${SCORE_IP:-}")" "$(jstr "$j_country")" "$(jstr "$j_region")" "$(jnum "$j_asn")" \
-      "$(jstr "$j_asname")" "$(jstr "$j_iptype")" "$(jstr "$j_risk")" \
-      "$j_ai" "$j_v6leak" \
-      "$(jnum "${SCORE:-}")" "$(jstr "${SCORE_LABEL:-}")" "$j_deds" \
-      "$j_adv" "$(jstr "$WEB_BASE")"
+    build_cli_report_json 0 "$OUT_ELAPSED" "$SHARE_URL"
   fi
 fi
