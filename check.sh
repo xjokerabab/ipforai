@@ -5,6 +5,8 @@
 # 快捷（会直接执行远端脚本，请先确认信任来源）：
 #   curl -fsSL https://ipforai.cc/sh | sh
 #   curl -fsSL https://ipforai.cc/sh | sh -s -- 8.8.8.8
+#   curl -fsSL https://ipforai.cc/sh | sh -s -- -4
+#   curl -fsSL https://ipforai.cc/sh | sh -s -- -6
 #   curl -fsSL https://ipforai.cc/sh | sh -s -- -y
 #   curl -fsSL https://ipforai.cc/sh | sh -s -- -d
 #   curl -fsSL https://ipforai.cc/sh | sh -s -- -s
@@ -39,7 +41,7 @@ if [ -n "${IPFORAI_API:-}" ] && [ -z "${IPFORAI_WEB:-}" ]; then
   esac
 fi
 NET_TIMEOUT=8
-SCRIPT_VERSION="v3.7"
+SCRIPT_VERSION="v3.8"
 CHECK_STARTED_AT=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo '未知')
 CHECK_STARTED_EPOCH=$(date +%s 2>/dev/null || echo '')
 LOCAL_ZONE=$(date +%Z 2>/dev/null || echo '未知')
@@ -52,11 +54,14 @@ DETAIL=0
 PRINT_MD=0
 SHARE_MODE=auto
 OUT_MODE=full
+STACK_FORCE=""
 TARGET_IP=""
 TEST_IP="${IPFORAI_TEST_IP:-}"
 
 for arg in "$@"; do
   case "$arg" in
+    -4|--ipv4) STACK_FORCE="-4" ;;
+    -6|--ipv6) STACK_FORCE="-6" ;;
     -y|--yes) ASSUME_YES=1 ;;
     -d|--detail) DETAIL=1 ;;
     -m|--markdown) PRINT_MD=1 ;;
@@ -68,10 +73,12 @@ for arg in "$@"; do
       printf 'ipforai 终端守门员  %s\n' "$SCRIPT_VERSION"
       printf '官方入口：https://ipforai.cc/sh\n\n'
       printf '用法：\n'
-      printf '  curl -fsSL https://ipforai.cc/sh | sh -s -- [IP] [-y] [-d] [-s] [-m] [-j] [-r|--no-share]\n'
-      printf '  sh /tmp/ipforai-check.sh [IP] [-y] [-d] [-s] [-m] [-j]   # 先下载审阅后再执行\n\n'
+      printf '  curl -fsSL https://ipforai.cc/sh | sh -s -- [IP] [-4|-6] [-y] [-d] [-s] [-m] [-j] [-r|--no-share]\n'
+      printf '  sh /tmp/ipforai-check.sh [IP] [-4|-6] [-y] [-d] [-s] [-m] [-j]   # 先下载审阅后再执行\n\n'
       printf '参数：\n'
       printf '  IP          仅查询该 IP 的画像与出口 IP 基础分（不含本机链路 / 分流 / 遥测）\n'
+      printf '  -4          仅按 IPv4 出口与连通性检测\n'
+      printf '  -6          仅按 IPv6 出口与连通性检测\n'
       printf '  -y          跳过确认直接执行\n'
       printf '  -d          展开扩展 AI 工具分流表与 HTTP 状态详情\n'
       printf '  -s          一屏摘要（出口、四家 AI 可达性、基础分、待处理项）\n'
@@ -322,16 +329,20 @@ dns_official_tag() {
     claude.ai|api.anthropic.com)
       case "$dot_ip" in
         160.79.104.*|160.79.105.*|2607:6bc0:*) printf '官方 IP (Anthropic)' ;;
-        104.1[6-9].*|104.2[0-9].*|104.3[0-1].*|172.6[4-9].*|172.7[0-1].*|162.15[8-9].*|2606:4700:*) printf '官方接入 (Cloudflare)' ;;
+        104.1[6-9].*|104.2[0-9].*|104.3[0-1].*|172.6[4-9].*|172.7[0-1].*|162.15[8-9].*|2606:4700:*|2a06:98c[0-7]:*|2400:cb00:*|2803:f800:*|2405:b500:*|2405:8100:*|2c0f:f248:*) printf '官方接入 (Cloudflare)' ;;
       esac ;;
-    chatgpt.com)
+    chatgpt.com|grok.com)
       case "$dot_ip" in
-        104.1[6-9].*|104.2[0-9].*|104.3[0-1].*|172.6[4-9].*|172.7[0-1].*|162.15[8-9].*|2606:4700:*) printf '官方接入 (Cloudflare)' ;;
+        104.1[6-9].*|104.2[0-9].*|104.3[0-1].*|172.6[4-9].*|172.7[0-1].*|162.15[8-9].*|2606:4700:*|2a06:98c[0-7]:*|2400:cb00:*|2803:f800:*|2405:b500:*|2405:8100:*|2c0f:f248:*) printf '官方接入 (Cloudflare)' ;;
+      esac ;;
+    gemini.google.com)
+      case "$dot_ip" in
+        142.25[0-1].*|172.217.*|172.253.*|216.58.*|74.125.*|2404:6800:*|2607:f8b0:*|2a00:1450:*|2800:3f0:*) printf '官方接入 (Google)' ;;
       esac ;;
     api.statsig.com)
       case "$dot_ip" in
         34.*|35.*|2600:1901:*) printf '官方接入 (Google Cloud)' ;;
-        104.1[6-9].*|104.2[0-9].*|104.3[0-1].*|172.6[4-9].*|172.7[0-1].*|162.15[8-9].*|2606:4700:*) printf '官方接入 (Cloudflare)' ;;
+        104.1[6-9].*|104.2[0-9].*|104.3[0-1].*|172.6[4-9].*|172.7[0-1].*|162.15[8-9].*|2606:4700:*|2a06:98c[0-7]:*|2400:cb00:*|2803:f800:*|2405:b500:*|2405:8100:*|2c0f:f248:*) printf '官方接入 (Cloudflare)' ;;
       esac ;;
   esac
 }
@@ -383,6 +394,10 @@ esac
 
 PROXY_SET="${https_proxy:-${HTTPS_PROXY:-${all_proxy:-${ALL_PROXY:-}}}}"
 NO_PROXY_SET="${no_proxy:-${NO_PROXY:-}}"
+CURL_STACK=""
+if [ -n "$STACK_FORCE" ] && [ -z "$PROXY_SET" ]; then
+  CURL_STACK="$STACK_FORCE"
+fi
 
 printf '\n  %sipforai 终端守门员%s  %s%s%s\n' "$TITLE" "$R" "$DIM" "$SCRIPT_VERSION" "$R"
 printf '  %s%s%s\n' "$DIM" '────────────────────────────────────────────────────────' "$R"
@@ -390,6 +405,7 @@ printf '  %s报告时间%s  %s · %s%s\n' "$DIM" "$R" "$CHECK_STARTED_AT" "$LOCA
 printf '  %s系统环境%s  %s · %s · curl %s\n' "$DIM" "$R" "$OS_LABEL" "$OS_ARCH" "${CURL_VER:-?}"
 if [ -n "$PROXY_SET" ]; then
   printf '  %s代理变量%s  %s已设置 HTTPS_PROXY / ALL_PROXY（已脱敏）%s\n' "$DIM" "$R" "$GRN" "$R"
+  [ -n "$STACK_FORCE" ] && printf '  %s协议栈%s    %s代理环境变量模式下 -4/-6 仅作用于本机到代理，出口地址族由代理决定%s\n' "$DIM" "$R" "$YEL" "$R"
 else
   printf '  %s代理变量%s  未设置代理环境变量（若开 TUN 透明代理则由系统接管）\n' "$DIM" "$R"
 fi
@@ -399,7 +415,7 @@ fi
 if [ -n "$PROXY_SET" ] && [ -n "$NO_PROXY_SET" ]; then
   NO_PROXY_HIT=$(printf '%s' "$NO_PROXY_SET" | tr ',' '\n' | tr '[:upper:]' '[:lower:]' | awk '
     function ends(s, t) { return length(s) > length(t) && substr(s, length(s) - length(t) + 1) == t }
-    BEGIN { n = split("anthropic.com claude.ai claude.com openai.com chatgpt.com googleapis.com gemini.google.com x.ai grok.com statsig.com", d, " ") }
+    BEGIN { n = split("anthropic.com claude.ai claude.com claudeusercontent.com openai.com chatgpt.com sora.com googleapis.com gemini.google.com aistudio.google.com clients6.google.com deepmind.google notebooklm.google bard.google.com makersuite.google.com accounts.google.com apis.google.com ogs.google.com recaptcha.net x.ai grok.com cursor.com cursor.sh cursorapi.com githubcopilot.com windsurf.com codeium.com statsig.com statsigapi.net oaistatsig.com featuregates.org growthbook.io datadoghq.com sentry.io mixpanel.com hcaptcha.com workos.com auth0.com", d, " ") }
     {
       e = $0; gsub(/[[:space:]]/, "", e); sub(/^\*?\./, "", e);
       if (e == "") next;
@@ -415,12 +431,12 @@ if [ -n "$PROXY_SET" ] && [ -n "$NO_PROXY_SET" ]; then
 fi
 
 # API 地址被改写时，请求实际经第三方中转，出口与本报告检测的路径不同
-for base_var in ANTHROPIC_BASE_URL OPENAI_BASE_URL; do
+for base_var in ANTHROPIC_BASE_URL OPENAI_BASE_URL GOOGLE_GEMINI_BASE_URL; do
   eval "base_val=\${$base_var:-}"
   [ -z "$base_val" ] && continue
   base_host=$(printf '%s' "$base_val" | sed -e 's|^[A-Za-z][A-Za-z0-9+.-]*://||' -e 's|[/?#].*||' -e 's|.*@||' -e 's|:[0-9]*$||')
   case "$base_host" in
-    api.anthropic.com|api.openai.com) ;;
+    api.anthropic.com|api.openai.com|generativelanguage.googleapis.com) ;;
     *)
       printf '  %sAPI 地址%s  %s! %s 指向 %s（非官方地址）%s\n' "$DIM" "$R" "$YEL" "$base_var" "$base_host" "$R"
       add_advice "$base_var 指向 $base_host，API 请求经中转 → 确认该服务可信；要直连官方请取消此变量"
@@ -435,20 +451,51 @@ done
 
 printf '\n  %s[01] 出口总览与时区%s\n' "$TITLE" "$R"
 
-( fetch "$V4_BASE/api/ip-profile/echo" > "$TMP/echo4" 2>/dev/null ) & p_e4=$!
-( fetch "$API_BASE/api/ip-profile/echo" > "$TMP/echo_main" 2>/dev/null ) & p_em=$!
-spin_wait "正在识别公网出口" "$p_e4" "$p_em"
+IP4=''; IP6=''; DEFAULT_STACK=''
+if [ -z "$TARGET_IP" ]; then
+  if [ "$STACK_FORCE" = "-6" ]; then
+    ( curl $CURL_STACK -fsS -m "$NET_TIMEOUT" "$API_BASE/api/ip-profile/echo" > "$TMP/echo_main" 2>/dev/null ) & p_em=$!
+    spin_wait "正在识别 IPv6 公网出口" "$p_em"
+    MAIN_JSON=$(cat "$TMP/echo_main" 2>/dev/null)
+    MAIN_IP=$(json_str "$MAIN_JSON" ip)
+    MAIN_FAM=$(json_str "$MAIN_JSON" addressFamily)
+    if [ "$MAIN_FAM" = "ipv6" ]; then
+      IP6="$MAIN_IP"
+      DEFAULT_STACK='ipv6'
+    elif [ -n "$PROXY_SET" ] && [ -n "$MAIN_IP" ]; then
+      IP4="$MAIN_IP"
+      DEFAULT_STACK='ipv4'
+    else
+      DEFAULT_STACK='ipv6'
+    fi
+  elif [ "$STACK_FORCE" = "-4" ]; then
+    ( fetch "$V4_BASE/api/ip-profile/echo" > "$TMP/echo4" 2>/dev/null ) & p_e4=$!
+    spin_wait "正在识别 IPv4 公网出口" "$p_e4"
+    IP4=$(json_str "$(cat "$TMP/echo4" 2>/dev/null)" ip)
+    if [ -z "$IP4" ]; then
+      MAIN_JSON=$(curl $CURL_STACK -fsS -m "$NET_TIMEOUT" "$API_BASE/api/ip-profile/echo" 2>/dev/null || echo '')
+      MAIN_IP=$(json_str "$MAIN_JSON" ip)
+      MAIN_FAM=$(json_str "$MAIN_JSON" addressFamily)
+      [ "$MAIN_FAM" = "ipv4" ] && IP4="$MAIN_IP"
+    fi
+    DEFAULT_STACK='ipv4'
+  else
+    ( fetch "$V4_BASE/api/ip-profile/echo" > "$TMP/echo4" 2>/dev/null ) & p_e4=$!
+    ( fetch "$API_BASE/api/ip-profile/echo" > "$TMP/echo_main" 2>/dev/null ) & p_em=$!
+    spin_wait "正在识别公网出口" "$p_e4" "$p_em"
 
-IP4=$(json_str "$(cat "$TMP/echo4" 2>/dev/null)" ip)
-MAIN_JSON=$(cat "$TMP/echo_main" 2>/dev/null)
-MAIN_IP=$(json_str "$MAIN_JSON" ip)
-MAIN_FAM=$(json_str "$MAIN_JSON" addressFamily)
+    IP4=$(json_str "$(cat "$TMP/echo4" 2>/dev/null)" ip)
+    MAIN_JSON=$(cat "$TMP/echo_main" 2>/dev/null)
+    MAIN_IP=$(json_str "$MAIN_JSON" ip)
+    MAIN_FAM=$(json_str "$MAIN_JSON" addressFamily)
+    DEFAULT_STACK="$MAIN_FAM"
 
-IP6=''
-if [ "$MAIN_FAM" = "ipv6" ]; then
-  IP6="$MAIN_IP"
-elif [ -z "$IP4" ]; then
-  IP4="$MAIN_IP"
+    if [ "$MAIN_FAM" = "ipv6" ]; then
+      IP6="$MAIN_IP"
+    elif [ -z "$IP4" ]; then
+      IP4="$MAIN_IP"
+    fi
+  fi
 fi
 
 if [ -n "$IP4" ] && is_loopback_ip "$IP4"; then IP4=''; fi
@@ -468,6 +515,15 @@ if [ -n "$TARGET_IP" ]; then
     *)   IP4="$TARGET_IP"; IP6='' ;;
   esac
 fi
+
+DUAL_STACK_PROBE=0
+if [ -z "$TARGET_IP" ] && [ -z "$PROXY_SET" ] && [ -z "$STACK_FORCE" ] && [ -n "$IP4" ] && [ -n "$IP6" ]; then
+  DUAL_STACK_PROBE=1
+fi
+
+is_local_exit_ip() {
+  [ -n "$1" ] && { [ "$1" = "$IP4" ] || [ "$1" = "$IP6" ]; }
+}
 
 p_pv4=''; p_pv6=''; p_stat=''
 if [ -n "$IP4" ]; then ( fetch "$API_BASE/api/ip-profile?ip=$IP4" > "$TMP/p_v4" 2>/dev/null ) & p_pv4=$!; fi
@@ -574,7 +630,19 @@ if [ -n "$TARGET_IP" ]; then
   printf '  %s指定 IP 画像%s · 本机时区 %s (UTC%s) · 目标时区 %s\n' "$DIM" "$R" "${SYS_TZ:-未知}" "${UTC_OFF:-?}" "${IP_TZ:-未知}"
 else
   if [ -n "$IP4" ] && [ -n "$IP6" ]; then
-    printf '  %s双栈出口%s（IPv4 + IPv6）' "$DIM" "$R"
+    if [ "$DEFAULT_STACK" = "ipv6" ]; then
+      printf '  %s双栈出口%s（IPv4 + IPv6 · 默认优先 IPv6）' "$DIM" "$R"
+    elif [ "$DEFAULT_STACK" = "ipv4" ]; then
+      printf '  %s双栈出口%s（IPv4 + IPv6 · 默认优先 IPv4）' "$DIM" "$R"
+    else
+      printf '  %s双栈出口%s（IPv4 + IPv6）' "$DIM" "$R"
+    fi
+  elif [ "$CURL_STACK" = "-4" ] && [ -n "$IP4" ]; then
+    printf '  %s单栈出口%s（仅 IPv4）' "$DIM" "$R"
+  elif [ "$CURL_STACK" = "-6" ] && [ -n "$IP6" ]; then
+    printf '  %s单栈出口%s（仅 IPv6）' "$DIM" "$R"
+  elif [ -n "$PROXY_SET" ] && [ -n "$STACK_FORCE" ]; then
+    printf '  %s单栈出口%s（代理模式，出口地址族由节点决定）' "$DIM" "$R"
   else
     printf '  %s单栈出口%s' "$DIM" "$R"
   fi
@@ -611,21 +679,65 @@ bytedance|字节系|header|https://perfops.byte-test.com/500b-bench.jpg
 DOM
 }
 
+telemetry_groups() {
+  cat <<'TGRP'
+claude|Claude 遥测与鉴权
+openai|ChatGPT / OpenAI
+google|Gemini / Google
+grok|Grok / xAI
+coding|AI 编程工具
+shared|通用鉴权与验证
+TGRP
+}
+
 telemetry_targets() {
   cat <<'TELEM'
-claude_statsig|Claude 遥测 (Statsig)|api.statsig.com|no|/
-claude_console|Claude 控制台|platform.claude.com|yes|/cdn-cgi/trace
-datadog_logs|Claude Code 日志 (Datadog)|http-intake.logs.datadoghq.com|no|/
-sentry_ingest|异常上报 (Sentry)|sentry.io|no|/
-openai_auth|OpenAI 登录鉴权|auth.openai.com|yes|/cdn-cgi/trace
-openai_ab|ChatGPT 遥测 (AB)|ab.chatgpt.com|yes|/cdn-cgi/trace
-google_oauth|Google / Gemini 鉴权|oauth2.googleapis.com|no|/
-cf_turnstile|人机验证 (Turnstile)|challenges.cloudflare.com|yes|/cdn-cgi/trace
+claude_growthbook|Claude 开关 (GrowthBook)|cdn.growthbook.io|no|/|claude
+claude_console|Claude 控制台|platform.claude.com|yes|/cdn-cgi/trace|claude
+claude_sandbox|Claude 沙箱资源|claudeusercontent.com|yes|/cdn-cgi/trace|claude
+datadog_logs|Claude Code 日志 (Datadog)|http-intake.logs.us5.datadoghq.com|no|/|claude
+datadog_browser|Claude 网页遥测 (Datadog)|browser-intake-us5-datadoghq.com|no|/|claude
+openai_auth|OpenAI 登录鉴权|auth.openai.com|yes|/cdn-cgi/trace|openai
+openai_ab|ChatGPT 遥测 (AB)|ab.chatgpt.com|yes|/cdn-cgi/trace|openai
+openai_statsig_events|ChatGPT 埋点 (Statsig)|api.oaistatsig.com|yes|/cdn-cgi/trace|openai
+openai_statsig_cdn|ChatGPT 开关 (Statsig)|statsigcdn.openai.com|yes|/cdn-cgi/trace|openai
+openai_statsig_api|Statsig 异常上报|statsigapi.net|no|/|openai
+openai_static|ChatGPT 静态资源|cdn.oaistatic.com|yes|/cdn-cgi/trace|openai
+google_oauth|Google / Gemini 鉴权|oauth2.googleapis.com|no|/|google
+google_accounts|Google 账号登录|accounts.google.com|no|/|google
+google_clearcut|Google 遥测 (Clearcut)|play.googleapis.com|no|/|google
+google_firebase_log|Google 前端日志 (Firebase)|firebaselogging-pa.googleapis.com|no|/|google
+google_waa|Google 环境校验 (WAA)|waa-pa.clients6.google.com|no|/|google
+gemini_cli|Gemini CLI (Code Assist)|cloudcode-pa.googleapis.com|no|/|google
+gemini_app|Gemini App 接口|robinfrontend-pa.googleapis.com|no|/|google
+gemini_labs|Google AI Labs 沙箱|aisandbox-pa.googleapis.com|no|/|google
+gemini_studio|AI Studio RPC 接口|alkalimakersuite-pa.clients6.google.com|no|/|google
+grok_auth|Grok / xAI 登录鉴权|accounts.x.ai|yes|/cdn-cgi/trace|grok
+grok_cli_auth|Grok CLI 登录鉴权|auth.x.ai|yes|/cdn-cgi/trace|grok
+grok_mixpanel|Grok CLI 埋点 (Mixpanel)|api.mixpanel.com|no|/|grok
+cursor_api|Cursor 主接口|api2.cursor.sh|no|/|coding
+cursor_tab|Cursor Tab 补全|api3.cursor.sh|yes|/cdn-cgi/trace|coding
+cursor_auth|Cursor 登录鉴权|authenticate.cursor.sh|yes|/cdn-cgi/trace|coding
+cursor_market|Cursor 扩展市场 API|marketplace.cursorapi.com|yes|/cdn-cgi/trace|coding
+copilot_telemetry|GitHub Copilot 遥测|telemetry.individual.githubcopilot.com|no|/|coding
+copilot_client_telemetry|Copilot 客户端遥测|copilot-telemetry.githubusercontent.com|no|/|coding
+copilot_exp|Copilot 实验开关|default.exp-tas.com|no|/|coding
+sentry_ingest|异常上报 (Sentry)|o33249.ingest.us.sentry.io|no|/|shared
+auth0_sso|通用登录鉴权 (Auth0)|auth0.com|yes|/cdn-cgi/trace|shared
+workos_sso|企业单点登录 (WorkOS)|workos.com|yes|/cdn-cgi/trace|shared
+cf_turnstile|人机验证 (Turnstile)|challenges.cloudflare.com|yes|/cdn-cgi/trace|shared
+arkose_captcha|人机验证 (Arkose)|client-api.arkoselabs.com|no|/|shared
+google_recaptcha|人机验证 (reCAPTCHA)|recaptcha.net|no|/|shared
+hcaptcha|人机验证 (hCaptcha)|js.hcaptcha.com|yes|/cdn-cgi/trace|shared
 TELEM
 }
 
 extra_ai_routes() {
   cat <<'EXTRA'
+sora|Sora|cloudflare|sora.com
+cursor|Cursor|cloudflare|marketplace.cursorapi.com
+copilot|GitHub Copilot|http|api.githubcopilot.com
+windsurf|Windsurf|http|server.codeium.com
 perplexity|Perplexity|cloudflare|www.perplexity.ai
 midjourney|Midjourney|cloudflare|midjourney.com
 openrouter|OpenRouter|cloudflare|openrouter.ai
@@ -634,12 +746,19 @@ suno|Suno|cloudflare|suno.com
 replicate|Replicate|cloudflare|replicate.com
 bolt|Bolt|cloudflare|bolt.new
 lovable|Lovable|cloudflare|lovable.dev
+character_ai|Character AI|cloudflare|character.ai
+leonardo|Leonardo AI|cloudflare|leonardo.ai
+pi|Pi|cloudflare|pi.ai
+phind|Phind|cloudflare|www.phind.com
+pixverse|PixVerse|cloudflare|pixverse.ai
+synthesia|Synthesia|cloudflare|www.synthesia.io
+genspark|Genspark|cloudflare|www.genspark.ai
 EXTRA
 }
 
 probe_cf_trace() {
   pct_domain="$1"; pct_out="$2"
-  pct_res=$(curl -sS -m "$NET_TIMEOUT" -o "$pct_out.body" -w '%{http_code}|%{time_total}|%{remote_ip}' "https://$pct_domain/cdn-cgi/trace" 2>/dev/null)
+  pct_res=$(curl $CURL_STACK -sS -m "$NET_TIMEOUT" -o "$pct_out.body" -w '%{http_code}|%{time_total}|%{remote_ip}' "https://$pct_domain/cdn-cgi/trace" 2>/dev/null)
   IFS='|' read -r pct_code pct_time pct_rem <<EOF
 $pct_res
 EOF
@@ -653,13 +772,44 @@ EOF
   printf '%s|%s|%s|%s|%s\n' "$pct_code" "$pct_ip" "$pct_colo" "$pct_ms" "$pct_rem" > "$pct_out"
 }
 
+probe_http_reach() {
+  phr_domain="$1"; phr_out="$2"
+  phr_res=$(curl $CURL_STACK -s -m "$NET_TIMEOUT" -o /dev/null -w '%{http_code}|%{time_total}|%{remote_ip}' "https://$phr_domain/" 2>/dev/null)
+  IFS='|' read -r phr_code phr_time phr_rem <<EOF
+$phr_res
+EOF
+  phr_ms=$(awk -v s="$phr_time" 'BEGIN { if (s ~ /^[0-9]+([.][0-9]+)?$/) printf "%.0fms", s * 1000 }')
+  printf '%s|||%s|%s\n' "$phr_code" "$phr_ms" "$phr_rem" > "$phr_out"
+}
+
+probe_api_stack() {
+  pas_flag="$1"; pas_url="$2"; pas_expect="$3"; pas_out="$4"
+  pas_res=$(curl "$pas_flag" -s -m "$NET_TIMEOUT" -o /dev/null -w '%{http_code}|%{time_starttransfer}' "$pas_url" 2>/dev/null)
+  IFS='|' read -r pas_code pas_time <<EOF
+$pas_res
+EOF
+  pas_ms=$(awk -v s="$pas_time" 'BEGIN { if (s ~ /^[0-9]+([.][0-9]+)?$/ && s > 0) printf "%.0fms", s * 1000 }')
+  if [ "$pas_code" = "$pas_expect" ]; then
+    pas_st='ok'
+  elif [ "$pas_code" = "000" ] || [ -z "$pas_code" ]; then
+    pas_st='fail'
+  else
+    pas_st='review'
+  fi
+  printf '%s|%s|%s\n' "$pas_st" "$pas_code" "$pas_ms" > "$pas_out"
+}
+
 # 核心服务探测：同时记录 DNS / TCP / TLS / TTFB 四段毫秒耗时
 probe_core_line() {
   pcl_id="$1"; pcl_web="$2"; pcl_api_host="$3"; pcl_api_url="$4"; pcl_expect="$5"
   [ -n "$pcl_web" ] && probe_cf_trace "$pcl_web" "$TMP/core_web_$pcl_id" &
   [ -n "$pcl_api_host" ] && probe_cf_trace "$pcl_api_host" "$TMP/core_api_tr_$pcl_id" &
+  if [ "$DUAL_STACK_PROBE" -eq 1 ]; then
+    probe_api_stack -4 "$pcl_api_url" "$pcl_expect" "$TMP/core_api_v4_$pcl_id" &
+    probe_api_stack -6 "$pcl_api_url" "$pcl_expect" "$TMP/core_api_v6_$pcl_id" &
+  fi
   (
-    pcl_res=$(curl -s -m "$NET_TIMEOUT" -o /dev/null \
+    pcl_res=$(curl $CURL_STACK -s -m "$NET_TIMEOUT" -o /dev/null \
       -w '%{http_code}|%{time_namelookup}|%{time_connect}|%{time_appconnect}|%{time_starttransfer}|%{remote_ip}' \
       "$pcl_api_url" 2>/dev/null)
     IFS='|' read -r pcl_code t_dns t_tcp t_tls t_ttfb pcl_rem <<EOF
@@ -729,7 +879,7 @@ probe_telemetry() {
   pt_id="$1"; pt_host="$2"; pt_cf="$3"; pt_path="$4"
   pt_ip=''; pt_colo=''; pt_code=''; pt_time=''; pt_rem=''
   if [ "$pt_cf" = "yes" ]; then
-    pt_res=$(curl -sS -m "$NET_TIMEOUT" -o "$TMP/tel_$pt_id.body" -w '%{http_code}|%{time_total}|%{remote_ip}' "https://$pt_host$pt_path" 2>/dev/null)
+    pt_res=$(curl $CURL_STACK -sS -m "$NET_TIMEOUT" -o "$TMP/tel_$pt_id.body" -w '%{http_code}|%{time_total}|%{remote_ip}' "https://$pt_host$pt_path" 2>/dev/null)
     IFS='|' read -r pt_code pt_time pt_rem <<EOF
 $pt_res
 EOF
@@ -739,7 +889,7 @@ EOF
       valid_ip "$pt_ip" || pt_ip=''
     fi
   else
-    pt_res=$(curl -s -m "$NET_TIMEOUT" -o /dev/null -w '%{http_code}|%{time_total}|%{remote_ip}' "https://$pt_host$pt_path" 2>/dev/null)
+    pt_res=$(curl $CURL_STACK -s -m "$NET_TIMEOUT" -o /dev/null -w '%{http_code}|%{time_total}|%{remote_ip}' "https://$pt_host$pt_path" 2>/dev/null)
     IFS='|' read -r pt_code pt_time pt_rem <<EOF
 $pt_res
 EOF
@@ -750,7 +900,7 @@ EOF
 
 probe_tls_cert() {
   ptc_id="$1"; ptc_host="$2"
-  curl -sS -vI -m "$NET_TIMEOUT" "https://$ptc_host/" -o /dev/null > /dev/null 2> "$TMP/tls_$ptc_id" || true
+  curl $CURL_STACK -sS -vI -m "$NET_TIMEOUT" "https://$ptc_host/" -o /dev/null > /dev/null 2> "$TMP/tls_$ptc_id" || true
   ptc_ver=$(grep -iE 'SSL connection using|TLSv1\.[23]' "$TMP/tls_$ptc_id" 2>/dev/null | head -n 1 | sed -n 's/.*\(TLSv1\.[0-9]\).*/\1/p')
   ptc_issuer=$(grep -i 'issuer:' "$TMP/tls_$ptc_id" 2>/dev/null | head -n 1 | sed 's/.*issuer:[[:space:]]*//')
   ptc_cn=$(printf '%s' "$ptc_issuer" | sed -n 's/.*O=\([^;,]*\).*/\1/p')
@@ -775,28 +925,30 @@ EOF
 }
 
 build_official() {
+  bo_out="${2:-$TMP/official}"
   extract_products "$1" > "$TMP/products"
-  : > "$TMP/official"
+  : > "$bo_out"
   while read -r bo_line || [ -n "$bo_line" ]; do
     bo_sid=$(json_str "$bo_line" serviceId)
     [ -z "$bo_sid" ] && continue
     printf '%s|%s|%s\n' "$bo_sid" \
       "$(json_str "$bo_line" regionPolicyStatus)" \
-      "$(json_str "$bo_line" regionPolicyLabel)" >> "$TMP/official"
+      "$(json_str "$bo_line" regionPolicyLabel)" >> "$bo_out"
   done < "$TMP/products"
 }
 
 OFF_STATE=''; OFF_NOTE=''
 official_of() {
+  of_file="${2:-$TMP/official}"
   of_all=0; of_no=0; of_un=0
-  while IFS='|' read -r of_sid of_st _of_l; do
+  [ -f "$of_file" ] && while IFS='|' read -r of_sid of_st _of_l; do
     [ "$of_sid" = "$1" ] || continue
     of_all=$(( of_all + 1 ))
     case "$of_st" in
       not_supported) of_no=$(( of_no + 1 )) ;;
       unknown)       of_un=$(( of_un + 1 )) ;;
     esac
-  done < "$TMP/official"
+  done < "$of_file"
 
   if [ "$of_all" -eq 0 ]; then
     OFF_STATE='none'; OFF_NOTE=''
@@ -860,17 +1012,47 @@ else
   [ -z "$SCORE_JSON" ] && SCORE_JSON=$(fetch "$API_BASE/api/ip-profile?ip=$SCORE_IP")
   [ -z "$SCORE_JSON" ] && SCORE_JSON="$PRIMARY"
   build_official "$SCORE_JSON"
+  if [ "$DUAL_STACK_PROBE" -eq 1 ]; then
+    [ -s "$TMP/p_v4" ] && build_official "$(cat "$TMP/p_v4")" "$TMP/official_v4"
+    [ -s "$TMP/p_v6" ] && build_official "$(cat "$TMP/p_v6")" "$TMP/official_v6"
+  fi
   AI_CC=$(json_str "$(json_scope "$SCORE_JSON" geo)" countryCode)
 
+  HAS_SPLIT_ROUTING=0
+  if [ -n "$DOMESTIC_IP" ] && [ -n "$AI_EXIT" ] && [ "$DOMESTIC_IP" != "$AI_EXIT" ]; then
+    if ! { is_local_exit_ip "$DOMESTIC_IP" && is_local_exit_ip "$AI_EXIT"; }; then
+      HAS_SPLIT_ROUTING=1
+    fi
+  fi
+
   if [ -n "$DOMESTIC_IP" ]; then
-    if [ -n "$AI_EXIT" ] && [ "$DOMESTIC_IP" != "$AI_EXIT" ]; then
+    if [ "$HAS_SPLIT_ROUTING" -eq 1 ]; then
       printf '  %s国内基线%s  %s  %s✓ 已与 AI 出口分流%s\n\n' "$DIM" "$R" "$DOMESTIC_IP" "$GRN" "$R"
+    elif is_local_exit_ip "$DOMESTIC_IP" && is_local_exit_ip "$AI_EXIT" && [ "$DOMESTIC_IP" != "$AI_EXIT" ]; then
+      case "$DOMESTIC_IP" in *:*) dom_fam='IPv6' ;; *) dom_fam='IPv4' ;; esac
+      case "$AI_EXIT" in *:*) ai_fam='IPv6' ;; *) ai_fam='IPv4' ;; esac
+      printf '  %s国内基线%s  %s  %s同机不同栈（国内走 %s，AI 走 %s，未分流）%s\n\n' "$DIM" "$R" "$DOMESTIC_IP" "$DIM" "$dom_fam" "$ai_fam" "$R"
     else
       printf '  %s国内基线%s  %s  %s! 与 AI 出口相同（未分流或全局代理）%s\n\n' "$DIM" "$R" "$DOMESTIC_IP" "$YEL" "$R"
     fi
   else
     printf '  %s国内基线%s  未读到\n\n' "$DIM" "$R"
   fi
+
+  format_stack_cell() {
+    fsc_st="$1"; fsc_code="$2"; fsc_ms="$3"; fsc_off_st="$4"; fsc_off_note="$5"
+    case "$fsc_st" in
+      ok)     fsc_txt="${GRN}✓ 可达${R}${fsc_ms:+ · $fsc_ms}" ;;
+      review) fsc_txt="${YEL}! HTTP ${fsc_code:-?}${R}${fsc_ms:+ · $fsc_ms}" ;;
+      *)      fsc_txt="${RED}× 失败${R}" ;;
+    esac
+    if [ "$fsc_off_st" = "blocked" ]; then
+      fsc_txt="$fsc_txt ${RED}($fsc_off_note)${R}"
+    elif [ "$fsc_off_st" = "partial" ]; then
+      fsc_txt="$fsc_txt ${YEL}($fsc_off_note)${R}"
+    fi
+    printf '%s' "$fsc_txt"
+  }
 
   core_ai_lines | while IFS='|' read -r c_id c_name c_web c_api_h c_api_u c_exp; do
     w_ip=''; w_colo=''; w_ms=''
@@ -900,13 +1082,32 @@ else
     printf '\n'
     [ "$api_st" = "fail" ] && add_advice "$c_name API 连接失败 → 检查代理规则是否覆盖该服务域名"
 
+    if [ "$DUAL_STACK_PROBE" -eq 1 ]; then
+      v4_st='fail'; v4_code=''; v4_ms=''
+      v6_st='fail'; v6_code=''; v6_ms=''
+      [ -f "$TMP/core_api_v4_$c_id" ] && IFS='|' read -r v4_st v4_code v4_ms < "$TMP/core_api_v4_$c_id"
+      [ -f "$TMP/core_api_v6_$c_id" ] && IFS='|' read -r v6_st v6_code v6_ms < "$TMP/core_api_v6_$c_id"
+      official_of "$c_id" "$TMP/official_v4"
+      v4_off_st="$OFF_STATE"; v4_off_note="$OFF_NOTE"
+      official_of "$c_id" "$TMP/official_v6"
+      v6_off_st="$OFF_STATE"; v6_off_note="$OFF_NOTE"
+      printf '      双栈实测：IPv4 %s  |  IPv6 %s\n' \
+        "$(format_stack_cell "$v4_st" "$v4_code" "$v4_ms" "$v4_off_st" "$v4_off_note")" \
+        "$(format_stack_cell "$v6_st" "$v6_code" "$v6_ms" "$v6_off_st" "$v6_off_note")"
+      if [ "$v4_st" = "ok" ] && [ "$v6_st" != "ok" ]; then
+        add_advice "$c_name 的 IPv4 可达但 IPv6 异常 → 建议优先走 IPv4 或在客户端配置关闭 IPv6"
+      elif [ "$v6_st" = "ok" ] && [ "$v4_st" != "ok" ]; then
+        add_advice "$c_name 的 IPv6 可达但 IPv4 异常 → 核查 IPv4 出口是否受限"
+      fi
+    fi
+
     if [ -n "$c_web" ]; then
       web_show="${w_ip:-未读到}${w_colo:+ ($w_colo)}"
       api_show="${a_ip:-未读到}${a_colo:+ ($a_colo)}"
       if [ -n "$w_ip" ] && [ -n "$a_ip" ] && [ "$w_ip" != "$a_ip" ]; then
         printf '      网页：%s  |  API：%s%s%s  %s! 网页与 API 分裂%s\n' "$web_show" "$RED" "$api_show" "$R" "$RED" "$R"
         add_advice "$c_name 网页与 API 出口不同 → 让 $c_web 与 $c_api_h 走同一代理节点"
-      elif [ -n "$DOMESTIC_IP" ] && [ "$DOMESTIC_IP" != "$AI_EXIT" ] && { [ "$w_ip" = "$DOMESTIC_IP" ] || [ "$a_ip" = "$DOMESTIC_IP" ]; }; then
+      elif [ "$HAS_SPLIT_ROUTING" -eq 1 ] && [ -n "$DOMESTIC_IP" ] && { [ "$w_ip" = "$DOMESTIC_IP" ] || [ "$a_ip" = "$DOMESTIC_IP" ]; }; then
         printf '      网页：%s  |  API：%s  %s! 与国内基线相同（未进代理）%s\n' "$web_show" "$api_show" "$RED" "$R"
         add_advice "$c_name 流量未进代理 → 在代理规则中加入 $c_web、$c_api_h"
       else
@@ -930,21 +1131,28 @@ else
   # 设了 HTTP 代理变量时 curl -4/-6 只约束本机到代理一跳，结果不反映出口地址族，不再测
   p_fs1=''; p_fs2=''; p_fs3=''; p_fs4=''
   if [ -z "$PROXY_SET" ]; then
-    probe_forced_stack -4 claude.ai "$TMP/fs_v4_claude" & p_fs1=$!
-    probe_forced_stack -6 claude.ai "$TMP/fs_v6_claude" & p_fs2=$!
-    probe_forced_stack -4 api.anthropic.com "$TMP/fs_v4_api" & p_fs3=$!
-    probe_forced_stack -6 api.anthropic.com "$TMP/fs_v6_api" & p_fs4=$!
+    if [ "$STACK_FORCE" != "-6" ]; then
+      probe_forced_stack -4 claude.ai "$TMP/fs_v4_claude" & p_fs1=$!
+      probe_forced_stack -4 api.anthropic.com "$TMP/fs_v4_api" & p_fs3=$!
+    fi
+    if [ "$STACK_FORCE" != "-4" ]; then
+      probe_forced_stack -6 claude.ai "$TMP/fs_v6_claude" & p_fs2=$!
+      probe_forced_stack -6 api.anthropic.com "$TMP/fs_v6_api" & p_fs4=$!
+    fi
   fi
   # IPv6 泄漏：绕过代理变量、用 IPv6 字面地址直连（不走 DNS），看原生 IPv6 从哪个国家出去
+  p_v6l=''
+  if [ "$STACK_FORCE" != "-4" ]; then
+    (
+      v6l_body=$(curl -sS -m 4 --noproxy '*' 'https://[2606:4700:4700::1111]/cdn-cgi/trace' 2>/dev/null)
+      v6l_ip=$(printf '%s\n' "$v6l_body" | sed -n 's/^ip=//p' | head -n 1)
+      v6l_loc=$(printf '%s\n' "$v6l_body" | sed -n 's/^loc=//p' | head -n 1)
+      valid_ip "$v6l_ip" || v6l_ip=''
+      printf '%s|%s\n' "$v6l_ip" "$v6l_loc" > "$TMP/v6_leak"
+    ) & p_v6l=$!
+  fi
   (
-    v6l_body=$(curl -sS -m 4 --noproxy '*' 'https://[2606:4700:4700::1111]/cdn-cgi/trace' 2>/dev/null)
-    v6l_ip=$(printf '%s\n' "$v6l_body" | sed -n 's/^ip=//p' | head -n 1)
-    v6l_loc=$(printf '%s\n' "$v6l_body" | sed -n 's/^loc=//p' | head -n 1)
-    valid_ip "$v6l_ip" || v6l_ip=''
-    printf '%s|%s\n' "$v6l_ip" "$v6l_loc" > "$TMP/v6_leak"
-  ) & p_v6l=$!
-  (
-    for h in claude.ai api.anthropic.com chatgpt.com api.statsig.com; do
+    for h in claude.ai api.anthropic.com chatgpt.com gemini.google.com grok.com api.statsig.com; do
       ip=$(resolve_local_dns "$h")
       printf '%s|%s\n' "$h" "$ip" >> "$TMP/local_dns"
     done
@@ -962,25 +1170,45 @@ else
     # IPv6 通道回显的是 IPv4 地址，说明被代理或网关转成了 IPv4 出口，不能写在 IPv6 列下当作 IPv6 出口
     case "$v6_c" in ''|*:*) ;; *) v6_c="IPv4 出口 $v6_c" ;; esac
     case "$v6_a" in ''|*:*) ;; *) v6_a="IPv4 出口 $v6_a" ;; esac
-    printf '  %sclaude.ai%s          IPv4: %s  |  IPv6: %s\n' "$DIM" "$R" \
-      "${v4_c:-不可达}${v4_cm:+ ($v4_cm)}" "${v6_c:-无/未通}${v6_cm:+ ($v6_cm)}"
-    printf '  %sapi.anthropic.com%s  IPv4: %s  |  IPv6: %s\n' "$DIM" "$R" \
-      "${v4_a:-不可达}${v4_am:+ ($v4_am)}" "${v6_a:-无/未通}${v6_am:+ ($v6_am)}"
+    if [ "$STACK_FORCE" = "-6" ]; then
+      v4_c_disp="${DIM}已跳过 (-6)${R}"
+      v4_a_disp="${DIM}已跳过 (-6)${R}"
+    else
+      v4_c_disp="${v4_c:-不可达}${v4_cm:+ ($v4_cm)}"
+      v4_a_disp="${v4_a:-不可达}${v4_am:+ ($v4_am)}"
+    fi
+    if [ "$STACK_FORCE" = "-4" ]; then
+      v6_c_disp="${DIM}已跳过 (-4)${R}"
+      v6_a_disp="${DIM}已跳过 (-4)${R}"
+    else
+      v6_c_disp="${v6_c:-无/未通}${v6_cm:+ ($v6_cm)}"
+      v6_a_disp="${v6_a:-无/未通}${v6_am:+ ($v6_am)}"
+    fi
+    printf '  %sclaude.ai%s          IPv4: %s  |  IPv6: %s\n' "$DIM" "$R" "$v4_c_disp" "$v6_c_disp"
+    printf '  %sapi.anthropic.com%s  IPv4: %s  |  IPv6: %s\n' "$DIM" "$R" "$v4_a_disp" "$v6_a_disp"
   fi
 
   v6l_ip=''; v6l_loc=''
-  IFS='|' read -r v6l_ip v6l_loc < "$TMP/v6_leak" 2>/dev/null
-  case "$v6l_ip" in *:*) ;; *) v6l_ip='' ;; esac
-  if [ -z "$v6l_ip" ]; then
-    printf '  %sIPv6 直连%s   %s✓ 无原生 IPv6 出口%s\n' "$DIM" "$R" "$GRN" "$R"
-  elif [ -n "$AI_CC" ] && [ "$v6l_loc" = "$AI_CC" ]; then
-    printf '  %sIPv6 直连%s   %s✓ 已进代理（%s）%s\n' "$DIM" "$R" "$GRN" "$v6l_loc" "$R"
-  elif [ -n "$PROXY_SET" ]; then
-    # 代理变量模式下直连本来就不经代理（国内基线已体现），这里只说明有原生 IPv6
-    printf '  %sIPv6 直连%s   %s (%s) · 本机有原生 IPv6，不读代理变量的程序会直连\n' "$DIM" "$R" "$v6l_ip" "${v6l_loc:-?}"
+  if [ "$STACK_FORCE" = "-4" ]; then
+    printf '  %sIPv6 直连%s   %s已指定 -4 仅测 IPv4%s\n' "$DIM" "$R" "$DIM" "$R"
   else
-    printf '  %sIPv6 直连%s   %s%s (%s)  ! 绕过代理直连%s\n' "$DIM" "$R" "$RED" "$v6l_ip" "${v6l_loc:-?}" "$R"
-    add_advice "IPv6 流量绕过代理从 ${v6l_loc:-本地} 直连 → 在代理客户端开启 IPv6 接管，或关闭系统 IPv6"
+    IFS='|' read -r v6l_ip v6l_loc < "$TMP/v6_leak" 2>/dev/null
+    case "$v6l_ip" in *:*) ;; *) v6l_ip='' ;; esac
+    if [ -z "$v6l_ip" ]; then
+      printf '  %sIPv6 直连%s   %s✓ 无原生 IPv6 出口%s\n' "$DIM" "$R" "$GRN" "$R"
+    elif [ -n "$AI_CC" ] && [ "$v6l_loc" = "$AI_CC" ]; then
+      if [ -z "$PROXY_SET" ] && [ "$HAS_SPLIT_ROUTING" -eq 0 ] && [ "$v6l_ip" = "$IP6" ]; then
+        printf '  %sIPv6 直连%s   %s原生 IPv6 直连（%s，与主出口同区）%s\n' "$DIM" "$R" "$DIM" "$v6l_loc" "$R"
+      else
+        printf '  %sIPv6 直连%s   %s✓ 已进代理（%s）%s\n' "$DIM" "$R" "$GRN" "$v6l_loc" "$R"
+      fi
+    elif [ -n "$PROXY_SET" ]; then
+      # 代理变量模式下直连本来就不经代理（国内基线已体现），这里只说明有原生 IPv6
+      printf '  %sIPv6 直连%s   %s (%s) · 本机有原生 IPv6，不读代理变量的程序会直连\n' "$DIM" "$R" "$v6l_ip" "${v6l_loc:-?}"
+    else
+      printf '  %sIPv6 直连%s   %s%s (%s)  ! 绕过代理直连%s\n' "$DIM" "$R" "$RED" "$v6l_ip" "${v6l_loc:-?}" "$R"
+      add_advice "IPv6 流量绕过代理从 ${v6l_loc:-本地} 直连 → 在代理客户端开启 IPv6 接管，或关闭系统 IPv6"
+    fi
   fi
 
   printf '  %s本机 DNS 解析%s：\n' "$DIM" "$R"
@@ -1008,64 +1236,185 @@ else
   # ---------- 阶段 4：AI 遥测 / 埋点 / 鉴权域名 ----------
   printf '\n  %s[04] AI 遥测 / 埋点 / 鉴权域名（防终端漏代理）%s\n' "$TITLE" "$R"
 
-  telemetry_targets | { while IFS='|' read -r t_id t_label t_host t_cf t_path; do
+  TEL_COUNT=$(telemetry_targets | wc -l | tr -d ' ')
+  telemetry_targets | { while IFS='|' read -r t_id t_label t_host t_cf t_path t_grp; do
     probe_telemetry "$t_id" "$t_host" "$t_cf" "$t_path" &
   done; wait; } & p_tel=$!
-  spin_wait "正在探测 8 个遥测与鉴权域名" "$p_tel"
+  spin_wait "正在探测 $TEL_COUNT 个遥测与鉴权域名" "$p_tel"
 
-  telemetry_targets | while IFS='|' read -r t_id t_label t_host t_cf t_path; do
+  : > "$TMP/tel_eval"
+  telemetry_targets | while IFS='|' read -r t_id t_label t_host t_cf t_path t_grp; do
     [ -f "$TMP/tel_res_$t_id" ] || continue
     IFS='|' read -r t_code t_ip t_colo t_ms t_rem < "$TMP/tel_res_$t_id"
-    set_pad "$t_label" 28
-    l_pad="$PAD"
-
+    t_status=''
     if [ -z "$t_code" ] || [ "$t_code" = "000" ]; then
-      printf '  %s×%s %s%s%s连接失败%s  %s(%s)%s\n' "$RED" "$R" "$t_label" "$l_pad" "$RED" "$R" "$DIM" "$t_host" "$R"
-      continue
-    fi
-
-    if [ -n "$t_ip" ]; then
-      if [ -n "$DOMESTIC_IP" ] && [ "$t_ip" = "$DOMESTIC_IP" ] && [ "$DOMESTIC_IP" != "$AI_EXIT" ]; then
-        printf '  %s!%s %s%s%s%s%s · %s  %s漏网直连国内%s\n' "$RED" "$R" "$t_label" "$l_pad" "$RED" "$t_ip" "$R" "${t_ms:-?}" "$RED" "$R"
+      t_status='fail'
+    elif [ -n "$t_ip" ]; then
+      if [ "$HAS_SPLIT_ROUTING" -eq 1 ] && [ -n "$DOMESTIC_IP" ] && [ "$t_ip" = "$DOMESTIC_IP" ]; then
+        t_status='leak'
         add_advice "$t_label 直连国内 → 在代理规则中加入 $t_host"
       elif [ -n "$AI_EXIT" ] && [ "$t_ip" != "$AI_EXIT" ]; then
-        printf '  %s!%s %s%s%s%s%s · %s  %s与主出口不同%s\n' "$YEL" "$R" "$t_label" "$l_pad" "$YEL" "$t_ip" "$R" "${t_ms:-?}" "$YEL" "$R"
-        add_advice "$t_label 出口与主出口不同 → 让 $t_host 与 AI 主域名走同一节点"
+        if is_local_exit_ip "$t_ip" && is_local_exit_ip "$AI_EXIT"; then
+          t_status='alt_stack'
+        else
+          t_status='split'
+          add_advice "$t_label 出口与主出口不同 → 让 $t_host 与 AI 主域名走同一节点"
+        fi
+      elif [ -n "$AI_EXIT" ]; then
+        t_status='match'
       else
-        printf '  %s✓%s %s%s%s · %s  %s与主出口一致%s\n' "$GRN" "$R" "$t_label" "$l_pad" "$t_ip" "${t_ms:-?}" "$DIM" "$R"
+        t_status='ip_ok'
       fi
     else
       if [ -n "$t_rem" ] && { is_loopback_ip "$t_rem" || is_fake_ip "$t_rem"; }; then
-        printf '  %s✓%s %s%s可达 · %s  %s已进代理%s\n' "$GRN" "$R" "$t_label" "$l_pad" "${t_ms:-?}" "$DIM" "$R"
+        t_status='proxy_ok'
       else
-        printf '  %s✓%s %s%s可达 · %s  %s出口未回显%s\n' "$GRN" "$R" "$t_label" "$l_pad" "${t_ms:-?}" "$DIM" "$R"
+        t_status='reach_ok'
       fi
     fi
+    printf '%s|%s|%s|%s|%s|%s|%s|%s\n' \
+      "$t_grp" "$t_status" "$t_id" "$t_label" "$t_host" "$t_ip" "$t_ms" "$t_rem" >> "$TMP/tel_eval"
   done
+
+  TEL_FAIL_N=$(awk -F'|' '$2 == "fail" { n++ } END { print n + 0 }' "$TMP/tel_eval")
+  if [ "$TEL_FAIL_N" -gt 0 ]; then
+    TEL_FAIL_SAMPLE=$(awk -F'|' '$2 == "fail" { if (c < 3) { s = (s ? s "、" : "") $5; c++ } } END { print s }' "$TMP/tel_eval")
+    if [ "$TEL_FAIL_N" -gt 3 ]; then
+      add_advice "$TEL_FAIL_N 个遥测/鉴权域名连接失败（如 $TEL_FAIL_SAMPLE 等）→ 检查代理规则或网络连通性"
+    else
+      add_advice "$TEL_FAIL_N 个遥测/鉴权域名连接失败（$TEL_FAIL_SAMPLE）→ 检查代理规则或网络连通性"
+    fi
+  fi
+
+  if [ "$DETAIL" -eq 1 ]; then
+    while IFS='|' read -r t_grp t_status t_id t_label t_host t_ip t_ms t_rem; do
+      set_pad "$t_label" 28
+      l_pad="$PAD"
+      case "$t_status" in
+        fail)
+          printf '  %s×%s %s%s%s连接失败%s  %s(%s)%s\n' "$RED" "$R" "$t_label" "$l_pad" "$RED" "$R" "$DIM" "$t_host" "$R" ;;
+        leak)
+          printf '  %s!%s %s%s%s%s%s · %s  %s漏网直连国内%s\n' "$RED" "$R" "$t_label" "$l_pad" "$RED" "$t_ip" "$R" "${t_ms:-?}" "$RED" "$R" ;;
+        split)
+          printf '  %s!%s %s%s%s%s%s · %s  %s与主出口不同%s\n' "$YEL" "$R" "$t_label" "$l_pad" "$YEL" "$t_ip" "$R" "${t_ms:-?}" "$YEL" "$R" ;;
+        alt_stack)
+          printf '  %s✓%s %s%s%s · %s  %s同机另一地址族%s\n' "$GRN" "$R" "$t_label" "$l_pad" "$t_ip" "${t_ms:-?}" "$DIM" "$R" ;;
+        match)
+          printf '  %s✓%s %s%s%s · %s  %s与主出口一致%s\n' "$GRN" "$R" "$t_label" "$l_pad" "$t_ip" "${t_ms:-?}" "$DIM" "$R" ;;
+        ip_ok)
+          printf '  %s✓%s %s%s%s · %s  %s可达%s\n' "$GRN" "$R" "$t_label" "$l_pad" "$t_ip" "${t_ms:-?}" "$DIM" "$R" ;;
+        proxy_ok)
+          printf '  %s✓%s %s%s可达 · %s  %s已进代理%s\n' "$GRN" "$R" "$t_label" "$l_pad" "${t_ms:-?}" "$DIM" "$R" ;;
+        reach_ok)
+          printf '  %s✓%s %s%s可达 · %s  %s出口未回显%s\n' "$GRN" "$R" "$t_label" "$l_pad" "${t_ms:-?}" "$DIM" "$R" ;;
+      esac
+    done < "$TMP/tel_eval"
+  else
+    telemetry_groups | while IFS='|' read -r g_id g_label; do
+      g_total=0; g_ok=0; g_bad=0; g_has_red=0
+      g_match_ip=''; g_ip_ok=''; g_has_alt=0; g_has_proxy=0
+      while IFS='|' read -r e_grp e_st _eid _elabel _ehost e_ip _ems _erem; do
+        [ "$e_grp" = "$g_id" ] || continue
+        g_total=$(( g_total + 1 ))
+        case "$e_st" in
+          fail|leak)
+            g_bad=$(( g_bad + 1 ))
+            g_has_red=1 ;;
+          split)
+            g_bad=$(( g_bad + 1 )) ;;
+          match)
+            g_ok=$(( g_ok + 1 ))
+            [ -z "$g_match_ip" ] && [ -n "$e_ip" ] && g_match_ip="$e_ip" ;;
+          ip_ok)
+            g_ok=$(( g_ok + 1 ))
+            [ -z "$g_ip_ok" ] && [ -n "$e_ip" ] && g_ip_ok="$e_ip" ;;
+          alt_stack)
+            g_ok=$(( g_ok + 1 ))
+            g_has_alt=1 ;;
+          proxy_ok)
+            g_ok=$(( g_ok + 1 ))
+            g_has_proxy=1 ;;
+          reach_ok)
+            g_ok=$(( g_ok + 1 )) ;;
+        esac
+      done < "$TMP/tel_eval"
+      [ "$g_total" -eq 0 ] && continue
+
+      g_title="$g_label ($g_ok/$g_total)"
+      set_pad "$g_title" 28
+      g_pad="$PAD"
+
+      if [ "$g_bad" -eq 0 ]; then
+        if [ -n "$g_match_ip" ]; then
+          if [ "$g_total" -eq 1 ]; then
+            g_note='与主出口一致'
+          else
+            g_note='均可达且与主出口一致'
+          fi
+          printf '  %s✓%s %s%s%s  %s%s%s\n' "$GRN" "$R" "$g_title" "$g_pad" "$g_match_ip" "$DIM" "$g_note" "$R"
+        elif [ "$g_has_alt" -eq 1 ]; then
+          printf '  %s✓%s %s%s全部可达 · %s同机另一地址族%s\n' "$GRN" "$R" "$g_title" "$g_pad" "$DIM" "$R"
+        elif [ -n "$g_ip_ok" ]; then
+          printf '  %s✓%s %s%s%s  %s全部可达%s\n' "$GRN" "$R" "$g_title" "$g_pad" "$g_ip_ok" "$DIM" "$R"
+        elif [ "$g_has_proxy" -eq 1 ]; then
+          printf '  %s✓%s %s%s全部可达 · %s已进代理%s\n' "$GRN" "$R" "$g_title" "$g_pad" "$DIM" "$R"
+        else
+          printf '  %s✓%s %s%s全部可达 · %s出口未回显%s\n' "$GRN" "$R" "$g_title" "$g_pad" "$DIM" "$R"
+        fi
+      else
+        if [ "$g_has_red" -eq 1 ]; then g_clr="$RED"; else g_clr="$YEL"; fi
+        if [ "$g_ok" -gt 0 ]; then
+          g_err_txt="$g_bad 项异常，其余 $g_ok 项正常"
+        else
+          g_err_txt="$g_bad 项异常"
+        fi
+        printf '  %s!%s %s%s%s%s%s\n' "$g_clr" "$R" "$g_title" "$g_pad" "$g_clr" "$g_err_txt" "$R"
+        while IFS='|' read -r e_grp e_st _eid e_label e_host e_ip e_ms _erem; do
+          [ "$e_grp" = "$g_id" ] || continue
+          case "$e_st" in
+            fail|leak|split)
+              set_pad "$e_label" 26
+              case "$e_st" in
+                fail)  printf '      %s×%s %s%s%s连接失败%s  %s(%s)%s\n' "$RED" "$R" "$e_label" "$PAD" "$RED" "$R" "$DIM" "$e_host" "$R" ;;
+                leak)  printf '      %s!%s %s%s%s%s%s · %s  %s漏网直连国内%s\n' "$RED" "$R" "$e_label" "$PAD" "$RED" "$e_ip" "$R" "${e_ms:-?}" "$RED" "$R" ;;
+                split) printf '      %s!%s %s%s%s%s%s · %s  %s与主出口不同%s\n' "$YEL" "$R" "$e_label" "$PAD" "$YEL" "$e_ip" "$R" "${e_ms:-?}" "$YEL" "$R" ;;
+              esac
+              ;;
+          esac
+        done < "$TMP/tel_eval"
+      fi
+    done
+    printf '  %s共探测 %s 项 · 加 -d 展开全部逐项明细%s\n' "$DIM" "$TEL_COUNT" "$R"
+  fi
 
   # ---------- 阶段 5：TLS 证书链 & 被动 TCP 首包 + 双端 RTT 延迟差 ----------
   printf '\n  %s[05] TLS 证书链、TCP 首包与双端 RTT 延迟差%s\n' "$TITLE" "$R"
 
   probe_tls_cert anthropic api.anthropic.com & p_tls1=$!
   probe_tls_cert openai api.openai.com & p_tls2=$!
-  (
-    # 单次 curl 调用复用同一条热连接：先拉 SYN 指纹与服务端 RTT，再连打 3 次 /ping 测终端热往返 RTT
-    curl -sS -m "$NET_TIMEOUT" \
-      -o "$TMP/tcp_probe" -w 'probe|%{http_code}|%{time_total}\n' "$V4_BASE/api/tcp-probe" \
-      -o /dev/null -w 'ping1|%{http_code}|%{time_total}\n' "$V4_BASE/api/tcp-probe/ping?n=1" \
-      -o /dev/null -w 'ping2|%{http_code}|%{time_total}\n' "$V4_BASE/api/tcp-probe/ping?n=2" \
-      -o /dev/null -w 'ping3|%{http_code}|%{time_total}\n' "$V4_BASE/api/tcp-probe/ping?n=3" \
-      > "$TMP/tcp_pings" 2>/dev/null || true
-  ) & p_tcp=$!
-  spin_wait "正在检测 TLS 证书链与 TCP 延迟差" "$p_tls1" "$p_tls2" "$p_tcp"
+  probe_tls_cert gemini generativelanguage.googleapis.com & p_tls3=$!
+  probe_tls_cert grok api.x.ai & p_tls4=$!
+  p_tcp=''
+  if ! { [ "$STACK_FORCE" = "-6" ] && [ -z "$IP4" ]; }; then
+    (
+      # 单次 curl 调用复用同一条热连接：先拉 SYN 指纹与服务端 RTT，再连打 3 次 /ping 测终端热往返 RTT
+      curl -sS -m "$NET_TIMEOUT" \
+        -o "$TMP/tcp_probe" -w 'probe|%{http_code}|%{time_total}\n' "$V4_BASE/api/tcp-probe" \
+        -o /dev/null -w 'ping1|%{http_code}|%{time_total}\n' "$V4_BASE/api/tcp-probe/ping?n=1" \
+        -o /dev/null -w 'ping2|%{http_code}|%{time_total}\n' "$V4_BASE/api/tcp-probe/ping?n=2" \
+        -o /dev/null -w 'ping3|%{http_code}|%{time_total}\n' "$V4_BASE/api/tcp-probe/ping?n=3" \
+        > "$TMP/tcp_pings" 2>/dev/null || true
+    ) & p_tcp=$!
+  fi
+  spin_wait "正在检测 TLS 证书链与 TCP 延迟差" "$p_tls1" "$p_tls2" "$p_tls3" "$p_tls4" "$p_tcp"
 
-  for tls_pair in "anthropic|api.anthropic.com" "openai|api.openai.com"; do
+  for tls_pair in "anthropic|api.anthropic.com" "openai|api.openai.com" "gemini|generativelanguage.googleapis.com" "grok|api.x.ai"; do
     IFS='|' read -r tid thost <<EOF
 $tls_pair
 EOF
     [ -f "$TMP/tls_res_$tid" ] || continue
     IFS='|' read -r tver tiss < "$TMP/tls_res_$tid"
-    set_pad "$thost" 20
+    set_pad "$thost" 35
     if [ -z "$tver" ] && [ -z "$tiss" ]; then
       printf '  %s!%s %s%s未读到 TLS 握手信息\n' "$YEL" "$R" "$thost" "$PAD"
     else
@@ -1141,6 +1490,8 @@ EOF
     elif [ -n "$TCP_SRTT" ]; then
       printf '  %s服务端 RTT%s  %sms\n' "$DIM" "$R" "$TCP_SRTT"
     fi
+  elif [ "$STACK_FORCE" = "-6" ] && [ -z "$IP4" ]; then
+    printf '  %sTCP 首包探针仅支持 IPv4（已指定 -6，跳过）%s\n' "$DIM" "$R"
   else
     printf '  %sTCP 首包探针暂未连通，已跳过%s\n' "$DIM" "$R"
   fi
@@ -1149,20 +1500,112 @@ EOF
   if [ "$DETAIL" -eq 1 ]; then
     printf '\n  %s[扩展] 其他 AI 工具分流出口（-d）%s\n' "$TITLE" "$R"
     extra_ai_routes | { while IFS='|' read -r e_id e_name e_mode e_host; do
-      probe_cf_trace "$e_host" "$TMP/extra_$e_id" &
+      if [ "$e_mode" = "http" ]; then
+        probe_http_reach "$e_host" "$TMP/extra_$e_id" &
+      else
+        probe_cf_trace "$e_host" "$TMP/extra_$e_id" &
+      fi
     done; wait; } & p_ext=$!
     spin_wait "正在探测扩展 AI 工具分流" "$p_ext"
-    extra_ai_routes | while IFS='|' read -r e_id e_name e_mode e_host; do
+
+    print_wrapped_names() {
+      pwn_file="$1"
+      [ -s "$pwn_file" ] || return
+      awk '
+        BEGIN { line = ""; cnt = 0 }
+        {
+          if (cnt > 0 && cnt % 6 == 0) {
+            printf "      %s\n", line
+            line = $0
+          } else {
+            line = (line == "" ? $0 : line " · " $0)
+          }
+          cnt++
+        }
+        END {
+          if (line != "") printf "      %s\n", line
+        }
+      ' "$pwn_file"
+    }
+
+    : > "$TMP/ext_match"
+    : > "$TMP/ext_ip_ok"
+    : > "$TMP/ext_alt"
+    : > "$TMP/ext_proxy"
+    : > "$TMP/ext_reach"
+    : > "$TMP/ext_bad"
+
+    while IFS='|' read -r e_id e_name e_mode e_host; do
       [ -f "$TMP/extra_$e_id" ] || continue
-      IFS='|' read -r _ec e_ip e_colo e_ms _er < "$TMP/extra_$e_id"
-      [ -n "$e_ip" ] || continue
-      set_pad "$e_name" 14
-      if [ -n "$AI_EXIT" ] && [ "$e_ip" != "$AI_EXIT" ]; then
-        printf '  %s%s  %s%s%s · %s  %s与主出口不同%s\n' "$e_name" "$PAD" "$YEL" "$e_ip" "$R" "${e_ms:-?}" "$YEL" "$R"
-      else
-        printf '  %s%s  %s · %s\n' "$e_name" "$PAD" "$e_ip" "${e_ms:-?}"
+      IFS='|' read -r e_code e_ip e_colo e_ms e_rem < "$TMP/extra_$e_id"
+      if [ "$e_mode" = "http" ]; then
+        if [ -z "$e_code" ] || [ "$e_code" = "000" ]; then
+          printf 'fail|%s|%s|\n' "$e_name" "$e_host" >> "$TMP/ext_bad"
+        elif [ -n "$e_rem" ] && { is_loopback_ip "$e_rem" || is_fake_ip "$e_rem"; }; then
+          printf '%s\n' "$e_name" >> "$TMP/ext_proxy"
+        else
+          printf '%s\n' "$e_name" >> "$TMP/ext_reach"
+        fi
+        continue
       fi
-    done
+      if [ -z "$e_ip" ]; then
+        if [ -z "$e_code" ] || [ "$e_code" = "000" ]; then
+          printf 'fail|%s|%s|\n' "$e_name" "$e_host" >> "$TMP/ext_bad"
+        else
+          printf '%s\n' "$e_name" >> "$TMP/ext_reach"
+        fi
+      elif [ "$HAS_SPLIT_ROUTING" -eq 1 ] && [ -n "$DOMESTIC_IP" ] && [ "$e_ip" = "$DOMESTIC_IP" ]; then
+        printf 'leak|%s|%s|%s\n' "$e_name" "$e_ip" "$e_ms" >> "$TMP/ext_bad"
+      elif [ -n "$AI_EXIT" ] && [ "$e_ip" != "$AI_EXIT" ]; then
+        if is_local_exit_ip "$e_ip" && is_local_exit_ip "$AI_EXIT"; then
+          printf '%s (%s)\n' "$e_name" "$e_ip" >> "$TMP/ext_alt"
+        else
+          printf 'split|%s|%s|%s\n' "$e_name" "$e_ip" "$e_ms" >> "$TMP/ext_bad"
+        fi
+      elif [ -n "$AI_EXIT" ]; then
+        printf '%s\n' "$e_name" >> "$TMP/ext_match"
+      else
+        printf '%s (%s)\n' "$e_name" "$e_ip" >> "$TMP/ext_ip_ok"
+      fi
+    done <<EOF
+$(extra_ai_routes)
+EOF
+
+    if [ -s "$TMP/ext_match" ]; then
+      ext_n=$(wc -l < "$TMP/ext_match" | tr -d ' ')
+      printf '  %s✓%s 与主出口一致（%s 项）  %s\n' "$GRN" "$R" "$ext_n" "$AI_EXIT"
+      print_wrapped_names "$TMP/ext_match"
+    fi
+    if [ -s "$TMP/ext_ip_ok" ]; then
+      ext_n=$(wc -l < "$TMP/ext_ip_ok" | tr -d ' ')
+      printf '  %s✓%s 可达 · 独立回显出口（%s 项，未识别主出口）\n' "$GRN" "$R" "$ext_n"
+      print_wrapped_names "$TMP/ext_ip_ok"
+    fi
+    if [ -s "$TMP/ext_alt" ]; then
+      ext_n=$(wc -l < "$TMP/ext_alt" | tr -d ' ')
+      printf '  %s✓%s 同机另一地址族（%s 项）\n' "$GRN" "$R" "$ext_n"
+      print_wrapped_names "$TMP/ext_alt"
+    fi
+    if [ -s "$TMP/ext_proxy" ]; then
+      ext_n=$(wc -l < "$TMP/ext_proxy" | tr -d ' ')
+      printf '  %s✓%s 可达 · 已进代理（%s 项，无出口回显）\n' "$GRN" "$R" "$ext_n"
+      print_wrapped_names "$TMP/ext_proxy"
+    fi
+    if [ -s "$TMP/ext_reach" ]; then
+      ext_n=$(wc -l < "$TMP/ext_reach" | tr -d ' ')
+      printf '  %s✓%s 可达 · 出口未回显（%s 项）\n' "$GRN" "$R" "$ext_n"
+      print_wrapped_names "$TMP/ext_reach"
+    fi
+    if [ -s "$TMP/ext_bad" ]; then
+      while IFS='|' read -r b_kind b_name b_val b_ms; do
+        set_pad "$b_name" 16
+        case "$b_kind" in
+          leak)  printf '  %s!%s %s%s%s%s%s · %s  %s漏网直连国内%s\n' "$RED" "$R" "$b_name" "$PAD" "$RED" "$b_val" "$R" "${b_ms:-?}" "$RED" "$R" ;;
+          split) printf '  %s!%s %s%s%s%s%s · %s  %s与主出口不同%s\n' "$YEL" "$R" "$b_name" "$PAD" "$YEL" "$b_val" "$R" "${b_ms:-?}" "$YEL" "$R" ;;
+          fail)  printf '  %s×%s %s%s%s连接失败%s  %s(%s)%s\n' "$RED" "$R" "$b_name" "$PAD" "$RED" "$R" "$DIM" "$b_val" "$R" ;;
+        esac
+      done < "$TMP/ext_bad"
+    fi
   fi
 
   SCORE_SECTION='[06]'
@@ -1171,6 +1614,34 @@ fi
 # ==============================================================================
 # 最终阶段：出口 IP 基础分
 # ==============================================================================
+
+score_color() {
+  case "$1" in
+    ''|*[!0-9]*) printf '%s' "$DIM"; return ;;
+  esac
+  if [ "$1" -ge 85 ]; then printf '%s' "$GRN"
+  elif [ "$1" -ge 50 ]; then printf '%s' "$YEL"
+  else printf '%s' "$RED"
+  fi
+}
+
+SCORE_V4=''; SCORE_V4_LABEL=''; SCORE_V6=''; SCORE_V6_LABEL=''
+if [ -z "$TARGET_IP" ] && [ -n "$IP4" ] && [ -n "$IP6" ] && [ -s "$TMP/p_v4" ] && [ -s "$TMP/p_v6" ]; then
+  SCORE_V4_O=$(json_scope "$(cat "$TMP/p_v4")" score)
+  SCORE_V4=$(json_num "$SCORE_V4_O" environmentScore)
+  SCORE_V4_LABEL=$(json_str "$SCORE_V4_O" levelLabel)
+  SCORE_V6_O=$(json_scope "$(cat "$TMP/p_v6")" score)
+  SCORE_V6=$(json_num "$SCORE_V6_O" environmentScore)
+  SCORE_V6_LABEL=$(json_str "$SCORE_V6_O" levelLabel)
+  case "$SCORE_V4:$SCORE_V6" in
+    *[!0-9:]*) ;;
+    *)
+      if [ -n "$SCORE_V4" ] && [ -n "$SCORE_V6" ] && [ "$SCORE_IP" = "$IP6" ] && [ $(( SCORE_V4 - SCORE_V6 )) -ge 10 ]; then
+        add_advice "IPv4 出口基础分更高（$SCORE_V4 vs $SCORE_V6）→ 若作代理落地建议优先走 IPv4"
+      fi
+      ;;
+  esac
+fi
 
 ADVICE_N=0
 [ -s "$TMP/advice" ] && ADVICE_N=$(wc -l < "$TMP/advice" | tr -d ' ')
@@ -1194,18 +1665,27 @@ PURITY_URL=''
 printf '\n  %s%s 出口 IP 基础分%s\n\n' "$TITLE" "$SCORE_SECTION" "$R"
 
 if [ -n "$SCORE" ]; then
-  if [ "$SCORE" -ge 85 ]; then SC="$GRN"
-  elif [ "$SCORE" -ge 50 ]; then SC="$YEL"
-  else SC="$RED"; fi
+  SC=$(score_color "$SCORE")
 
   printf '  %s出口 IP 基础分%s  %s%s%s %s/ 100%s   %s%s%s\n' \
     "$B" "$R" "$SC$B" "$SCORE" "$R" "$DIM" "$R" "$SC" "$SCORE_LABEL" "$R"
   [ -n "$SCORE_IP" ] && printf '  %s计分对象%s    %s\n' "$DIM" "$R" "$SCORE_IP"
+  if [ -n "$SCORE_V4" ] && [ -n "$SCORE_V6" ]; then
+    SC4=$(score_color "$SCORE_V4")
+    SC6=$(score_color "$SCORE_V6")
+    printf '  %s双栈基础分%s  IPv4 %s%s/100 %s%s (%s)  |  IPv6 %s%s/100 %s%s (%s)\n' \
+      "$DIM" "$R" \
+      "$SC4$B" "$SCORE_V4" "$SCORE_V4_LABEL" "$R" "$IP4" \
+      "$SC6$B" "$SCORE_V6" "$SCORE_V6_LABEL" "$R" "$IP6"
+  fi
   print_terminal_check
   [ -z "$TARGET_IP" ] && printf '  %s口径说明%s    %s仅评出口 IP 质素（身份/地区一致性/信誉）；含中转与浏览器协同的综合环境分见 %s%s\n' \
     "$DIM" "$R" "$DIM" "$WEB_BASE" "$R"
   [ -n "$PURITY_URL" ] && printf '  %s深度档案%s    %s%s（0–100 纯净度、双层归属穿透与 10 家 DNSBL 明细）%s\n' \
     "$DIM" "$R" "$PURITY_URL" "$DIM" "$R"
+  if [ -z "$TARGET_IP" ] && [ -n "$IP4" ] && [ "$SCORE_IP" != "$IP4" ]; then
+    printf '  %sIPv4 档案%s   %s/ip/%s\n' "$DIM" "$R" "$WEB_BASE" "$IP4"
+  fi
 
   DEDUCTIONS=$(json_list "$SCORE_O" deductions)
   if [ -n "$DEDUCTIONS" ]; then
@@ -1484,11 +1964,14 @@ if [ "$OUT_MODE" != full ]; then
     fi
 
     if [ -n "${SCORE:-}" ]; then
-      if [ "$SCORE" -ge 85 ]; then SC="$GRN"
-      elif [ "$SCORE" -ge 50 ]; then SC="$YEL"
-      else SC="$RED"; fi
-      printf '  %s基础分%s    %s%s%s %s/ 100%s  %s%s%s\n' \
-        "$DIM" "$R" "$SC$B" "$SCORE" "$R" "$DIM" "$R" "$SC" "$SCORE_LABEL" "$R"
+      SC=$(score_color "$SCORE")
+      if [ -n "$SCORE_V4" ] && [ -n "$SCORE_V6" ]; then
+        printf '  %s基础分%s    %s%s%s %s/ 100%s  %s%s%s  %s（IPv4 %s · IPv6 %s）%s\n' \
+          "$DIM" "$R" "$SC$B" "$SCORE" "$R" "$DIM" "$R" "$SC" "$SCORE_LABEL" "$R" "$DIM" "$SCORE_V4" "$SCORE_V6" "$R"
+      else
+        printf '  %s基础分%s    %s%s%s %s/ 100%s  %s%s%s\n' \
+          "$DIM" "$R" "$SC$B" "$SCORE" "$R" "$DIM" "$R" "$SC" "$SCORE_LABEL" "$R"
+      fi
     else
       printf '  %s基础分%s    %s暂时无法计算%s\n' "$DIM" "$R" "$YEL" "$R"
     fi
