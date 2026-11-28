@@ -249,9 +249,9 @@ set_pad() {
 
 network_tone() {
   case "$1:$2" in
-    consumer_isp_likely:fixed_broadband) printf '%s' "$GRN" ;;
     datacenter_proxy:*|residential_proxy:*|vpn_proxy:*|tor_exit:*|public_proxy:*|web_proxy:*|privacy_network:*|enterprise_proxy:*|proxy_likely:*) printf '%s' "$RED" ;;
-    datacenter_likely:*|network_infrastructure:*|search_engine_crawler:*|ai_crawler:*) printf '%s' "$YEL" ;;
+    *:fixed_broadband|*:business_broadband|*:mobile_carrier|*:satellite) printf '%s' "$GRN" ;;
+    datacenter_likely:*|network_infrastructure:*|search_engine_crawler:*|ai_crawler:*|*:public_cloud|*:cdn) printf '%s' "$YEL" ;;
     *) printf '%s' "$DIM" ;;
   esac
 }
